@@ -1602,10 +1602,10 @@ const currentYearSpeculationLossCFOld =
 const currentYearSpeculationLossCFNew =
   speculationLossNew;
 
-const currentYearSTCGLossCF =
+let currentYearSTCGLossCF =
   remainingSTCGLoss;
 
-const currentYearLTCGLossCF =
+let currentYearLTCGLossCF =
   remainingLTCGLoss;
 
 const finalHousePropertyIncomeOld =
