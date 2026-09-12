@@ -81,6 +81,7 @@ export default function Section234CCalculatorAY2026_27() {
   const [ageCategory, setAgeCategory] = useState("below_60");
   const [seniorNoBusiness, setSeniorNoBusiness] = useState(false);
   const [domesticCompanyOption, setDomesticCompanyOption] = useState("turnover_400cr");
+  const [manufacturingBusinessIncome, setManufacturingBusinessIncome] =useState("");
   const [foreignCompanyOption, setForeignCompanyOption] = useState("other_foreign_income");
   const [cooperativeOption, setCooperativeOption] = useState("normal");
   const [income, setIncome] = useState(initialIncome);
@@ -177,7 +178,14 @@ export default function Section234CCalculatorAY2026_27() {
     const amount = Math.max(Number(ordinaryIncome) || 0, 0);
     if (status === "individual_group" || status === "aop_company_group") return getIndividualSlabTax(amount);
     if (status === "firm_llp_local") return amount * 0.3;
-    if (status === "domestic_company") return amount * (selectedDomesticCompanyOption.rate / 100);
+    if (status === "domestic_company") {
+    if (domesticCompanyOption === "section_115BAB") {
+      const manufacturingIncome = Math.min(Math.max(Number(manufacturingBusinessIncome) || 0, 0),amount  );
+      const remainingIncome = Math.max(amount - manufacturingIncome,0);
+      const manufacturingTax =manufacturingIncome * 0.15;
+      const remainingTax =remainingIncome * 0.22;
+      return manufacturingTax + remainingTax;}
+      return (amount *(selectedDomesticCompanyOption.rate / 100) );}
     if (status === "foreign_company") return amount * (selectedForeignCompanyOption.rate / 100);
     if (status === "cooperative_society") {
       if (selectedCooperativeOption.value === "normal") return getCooperativeNormalTax(amount);
@@ -832,7 +840,7 @@ const thresholdSurcharge =
       result[period.key] = calculateTaxForPeriod(period.key);
     });
     return result;
-  }, [income, commonCredit, mmrAmount, status, regime, ageCategory, seniorNoBusiness, domesticCompanyOption, foreignCompanyOption, cooperativeOption]);
+  }, [income, commonCredit, mmrAmount, manufacturingBusinessIncome, status, regime, ageCategory, seniorNoBusiness, domesticCompanyOption, foreignCompanyOption, cooperativeOption]);
 
   const installmentCalculation = useMemo(() => {
   let cumulativeAdvanceTaxPaid = 0;
@@ -990,15 +998,40 @@ const thresholdSurcharge =
                 )}
 
                 {status === "domestic_company" && (
-                  <div className="c234-field">
-                    <label>Domestic Company Option</label>
-                    <select value={domesticCompanyOption} onChange={(e) => setDomesticCompanyOption(e.target.value)}>
-                      {domesticCompanyOptions.map((item) => (
-                        <option key={item.value} value={item.value}>{item.label}</option>
-                      ))}
-                    </select>
-                  </div>
-                )}
+  <div className="c234-field">
+    <label>Domestic Company Option</label>
+
+    <select
+      value={domesticCompanyOption}
+      onChange={(e) =>
+        setDomesticCompanyOption(e.target.value)
+      }
+    >
+      {domesticCompanyOptions.map((item) => (
+        <option key={item.value} value={item.value}>
+          {item.label}
+        </option>
+      ))}
+    </select>
+  </div>
+)}
+
+{status === "domestic_company" &&
+ domesticCompanyOption === "section_115BAB" && (
+  <div className="c234-field">
+    <label>Manufacturing Business Income</label>
+
+    <input
+      type="text"
+      inputMode="numeric"
+      value={manufacturingBusinessIncome}
+      onChange={(e) =>
+        setManufacturingBusinessIncome(e.target.value)
+      }
+      placeholder="Enter manufacturing business income"
+    />
+  </div>
+)}
 
                 {status === "foreign_company" && (
                   <div className="c234-field">
@@ -1197,7 +1230,7 @@ const thresholdSurcharge =
                   <tbody>
                    {[
   ["Total Income", "totalIncome"],
-  ["Tax on Dividend Income", "dividendTax"],
+  ["Tax on normal income", "dividendTax"],
   ["Tax on STCG - Slab Rate", "stcgSlabTax"],
   ["Tax on LTCG @12.5%", "ltcg125Tax"],
   ["Tax on 112A @12.5%", "ltcg112aTax"],
