@@ -21,7 +21,7 @@ export default function Section234CCalculatorAY2026_27() {
 
   const statusOptions = [
     { value: "individual_group", label: "Individual / HUF / AOP / BOI / Artificial Juridical Person" },
-    { value: "aop_company_group", label: "AOP consisting only companies as members" },
+    { value: "aop_company_group", label: "AOP" },
     { value: "firm_llp_local", label: "Firm / LLP / Local Authority" },
     { value: "domestic_company", label: "Domestic Company" },
     { value: "foreign_company", label: "Foreign Company" },
@@ -176,7 +176,8 @@ export default function Section234CCalculatorAY2026_27() {
 
   const calculateOrdinaryTax = (ordinaryIncome) => {
     const amount = Math.max(Number(ordinaryIncome) || 0, 0);
-    if (status === "individual_group" || status === "aop_company_group") return getIndividualSlabTax(amount);
+    if (status === "individual_group") {return getIndividualSlabTax(amount);}
+    if (status === "aop_company_group") {return amount * 0.30;}
     if (status === "firm_llp_local") return amount * 0.3;
     if (status === "domestic_company") {
     if (domesticCompanyOption === "section_115BAB") {
@@ -188,10 +189,15 @@ export default function Section234CCalculatorAY2026_27() {
       return (amount *(selectedDomesticCompanyOption.rate / 100) );}
     if (status === "foreign_company") return amount * (selectedForeignCompanyOption.rate / 100);
     if (status === "cooperative_society") {
-      if (selectedCooperativeOption.value === "normal") return getCooperativeNormalTax(amount);
-      return amount * (selectedCooperativeOption.rate / 100);
-    }
-    return 0;
+    if (selectedCooperativeOption.value === "normal") {return getCooperativeNormalTax(amount); }
+    if (selectedCooperativeOption.value === "section_115BAE") {
+      const manufacturingIncome = Math.min( Math.max(Number(manufacturingBusinessIncome) || 0, 0), amount);
+      const remainingIncome = Math.max(amount - manufacturingIncome,  0 );
+      const manufacturingTax =manufacturingIncome * 0.15;
+      const remainingTax = remainingIncome * 0.22;
+      return manufacturingTax + remainingTax; }
+      return amount * (selectedCooperativeOption.rate / 100);}
+      return 0;
   };
 
   const getSurchargeRate = (totalIncome,adjustedIncomeForEnhancedSurcharge = totalIncome) => {
@@ -1016,22 +1022,6 @@ const thresholdSurcharge =
   </div>
 )}
 
-{status === "domestic_company" &&
- domesticCompanyOption === "section_115BAB" && (
-  <div className="c234-field">
-    <label>Manufacturing Business Income</label>
-
-    <input
-      type="text"
-      inputMode="numeric"
-      value={manufacturingBusinessIncome}
-      onChange={(e) =>
-        setManufacturingBusinessIncome(e.target.value)
-      }
-      placeholder="Enter manufacturing business income"
-    />
-  </div>
-)}
 
                 {status === "foreign_company" && (
                   <div className="c234-field">
@@ -1055,6 +1045,29 @@ const thresholdSurcharge =
                   </div>
                 )}
               </div>
+
+              {(
+  status === "domestic_company" &&
+  domesticCompanyOption === "section_115BAB"
+) ||
+(
+  status === "cooperative_society" &&
+  cooperativeOption === "section_115BAE"
+) ? (
+  <div className="c234-field">
+    <label>Manufacturing Business Income</label>
+
+    <input
+      type="text"
+      inputMode="numeric"
+      value={manufacturingBusinessIncome}
+      onChange={(e) =>
+        setManufacturingBusinessIncome(e.target.value)
+      }
+      placeholder="Enter manufacturing business income"
+    />
+  </div>
+) : null}
 
               {status === "individual_group" && (
                 <label className="c234-check">
