@@ -1,6 +1,8 @@
 import React, { useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 export default function HRA_Calculator() {
+   const navigate = useNavigate();
   const initialState = {
     basicSalary: "",
     da: "",
@@ -99,7 +101,16 @@ export default function HRA_Calculator() {
   return (
   <div className="hra-modern-page">
     <div className="hra-modern-container">
-
+     <div className="business-code-back-wrapper">
+          <button
+            type="button"
+            className="business-code-back-btn"
+            onClick={() => navigate(-1)}
+          >
+            <span>←</span>
+            Back
+          </button>
+        </div>
       {/* HEADER */}
       <div className="hra-modern-header">
         <div>
@@ -650,6 +661,38 @@ export default function HRA_Calculator() {
           white-space: normal;
         }
       }
+        /* BACK BUTTON */
+
+        .business-code-back-wrapper {
+         
+          margin-bottom: 20px;
+        }
+
+        .business-code-back-btn {
+          display: inline-flex;
+          align-items: center;
+          gap: 8px;
+          height: 46px;
+          padding: 0 20px;
+          border-radius: 14px;
+          border: 1px solid rgba(148, 163, 184, 0.22);
+          background: rgba(15, 23, 42, 0.9);
+          color: #cbd5e1;
+          font-size: 14px;
+          font-weight: 800;
+          cursor: pointer;
+          transition: all 0.2s ease;
+        }
+
+        .business-code-back-btn:hover {
+          border-color: #60a5fa;
+          color: #ffffff;
+          background: rgba(37, 99, 235, 0.12);
+        }
+
+        .business-code-back-btn span {
+          font-size: 18px;
+        }
     `}</style>
   </div>
 );

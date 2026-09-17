@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from "react";
-
+import { useNavigate } from "react-router-dom";
 export default function Section234CCalculatorAY2026_27() {
+  const navigate = useNavigate();
   const ASSESSMENT_YEAR = "2026-27";
   const FINANCIAL_YEAR = "2025-26";
 
@@ -88,6 +89,11 @@ export default function Section234CCalculatorAY2026_27() {
   const [commonCredit, setCommonCredit] = useState("");
   const [advanceTax, setAdvanceTax] = useState(initialAdvanceTax);
   const [mmrAmount, setMmrAmount] = useState("");
+  const [aopNewRegimeSurcharge, setAopNewRegimeSurcharge] = useState("25");
+  const [manualSurcharge, setManualSurcharge] = useState(false);
+  const [manualSurchargeBeforeMR, setManualSurchargeBeforeMR] = useState("");
+  const [manualMarginalRelief, setManualMarginalRelief] = useState("");
+  const [manualNetSurcharge, setManualNetSurcharge] = useState("");
 
   const num = (value) => {
     if (value === null || value === undefined) return 0;
@@ -230,24 +236,11 @@ export default function Section234CCalculatorAY2026_27() {
 
   return 0;
 }
-    if (status === "aop_company_group") {
-
-  const enhancedSurchargeIncome =
-    adjustedIncomeForEnhancedSurcharge ?? incomeAmount;
-
-  if (enhancedSurchargeIncome > 20000000) {
-    return 15;
+ if (status === "aop_company_group") {
+  if (regime === "new") {
+    return Number(aopNewRegimeSurcharge) || 25;
   }
-
-  if (incomeAmount > 10000000) {
-    return 15;
-  }
-
-  if (incomeAmount > 5000000) {
-    return 10;
-  }
-
-  return 0;
+ return 37;
 }
     if (status === "firm_llp_local") return incomeAmount > 10000000 ? 12 : 0;
     if (status === "domestic_company") {
@@ -282,8 +275,6 @@ export default function Section234CCalculatorAY2026_27() {
     }
 
     if (status === "aop_company_group") {
-      if (incomeAmount > 10000000) return { threshold: 10000000, previousRate: 10 };
-      if (incomeAmount > 5000000) return { threshold: 5000000, previousRate: 0 };
       return null;
     }
 
@@ -465,7 +456,7 @@ let ltcg112aTaxable = Math.max(data.ltcg112a - 125000, 0);
 let stcg111aTaxable = data.stcg111a;
 let vdaIncomeTaxable = data.vdaIncome;
 
-if (status === "individual_group" || status === "aop_company_group") {
+if (status === "individual_group" ) {
   // =========================================================
   // BASIC EXEMPTION ADJUSTMENT ORDER
   //
@@ -638,7 +629,7 @@ const rawSurcharge =
       let thresholdLtcg112aTaxable = Math.max(data.ltcg112a - 125000, 0);
       let thresholdStcg111aTaxable = data.stcg111a;
 
-      if (status === "individual_group" || status === "aop_company_group") {
+      if (status === "individual_group" ) {
  // =========================================================
 // BASIC EXEMPTION FOR MARGINAL RELIEF
 // FINAL YEAR BASIS
@@ -846,7 +837,7 @@ const thresholdSurcharge =
       result[period.key] = calculateTaxForPeriod(period.key);
     });
     return result;
-  }, [income, commonCredit, mmrAmount, manufacturingBusinessIncome, status, regime, ageCategory, seniorNoBusiness, domesticCompanyOption, foreignCompanyOption, cooperativeOption]);
+  }, [income, commonCredit, mmrAmount, manufacturingBusinessIncome, status, regime, ageCategory, seniorNoBusiness, domesticCompanyOption, foreignCompanyOption, cooperativeOption, aopNewRegimeSurcharge, manualSurcharge,  manualSurchargeBeforeMR, manualMarginalRelief, manualNetSurcharge]);
 
   const installmentCalculation = useMemo(() => {
   let cumulativeAdvanceTaxPaid = 0;
@@ -949,6 +940,16 @@ const thresholdSurcharge =
   return (
     <div className="c234-page">
       <div className="c234-container">
+        <div className="business-code-back-wrapper">
+          <button
+            type="button"
+            className="business-code-back-btn"
+            onClick={() => navigate(-1)}
+          >
+            <span>←</span>
+            Back
+          </button>
+        </div>
         <div className="c234-header">
           <div>
             <p className="c234-kicker">Income Tax Utility</p>
@@ -1045,6 +1046,19 @@ const thresholdSurcharge =
                   </div>
                 )}
               </div>
+
+              {status === "aop_company_group" && regime === "new" && (
+  <div className="c234-field">
+    <label>AOP Surcharge Rate</label>
+    <select
+      value={aopNewRegimeSurcharge}
+      onChange={(e) => setAopNewRegimeSurcharge(e.target.value)}
+    >
+      <option value="25">25%</option>
+      <option value="37">37%</option>
+    </select>
+  </div>
+)}
 
               {(
   status === "domestic_company" &&
@@ -1231,7 +1245,24 @@ const thresholdSurcharge =
                 <h2>Income Wise Advance Tax Bifurcation</h2>
                 <p>Tax, surcharge, cess aur balance tax auto calculate hoga.</p>
               </div>
-
+                      <div style={{ marginBottom: "12px" }}>
+  <label
+    className="c234-check"
+    style={{
+      display: "inline-flex",
+      alignItems: "center",
+      gap: "8px",
+      cursor: "pointer",
+    }}
+  >
+    <input
+      type="checkbox"
+      checked={manualSurcharge}
+      onChange={(e) => setManualSurcharge(e.target.checked)}
+    />
+    <span>Manual Surcharge Calculation</span>
+  </label>
+</div>
               <div className="c234-table-wrap">
                 <table className="c234-result-table">
                   <thead>
@@ -1285,24 +1316,107 @@ const thresholdSurcharge =
   ))}
 </tr>
 
-{[
-  ["Surcharge before Marginal Relief", "rawSurcharge"],
-  ["Less: Marginal Relief", "marginalRelief"],
-  ["Net Surcharge", "surcharge"],
-  ["Cess @4%", "cess"],
-  ["Tax + Surcharge + Cess", "taxWithSurchargeAndCess"],
-  ["Less: TDS / TCS / Rebate / Relief / Credit", "commonCreditAmount"],
-].map(([label, key]) => (
-  <tr key={key}>
-    <td>{label}</td>
+{/* SURCHARGE / CESS / BALANCE TAX ROWS */}
 
-    {periods.map((period) => (
-      <td key={period.key}>
-        ₹ {formatCurrency(periodCalculation[period.key][key])}
-      </td>
-    ))}
-  </tr>
-))}
+<tr>
+  <td>Surcharge before Marginal Relief</td>
+
+  {periods.map((period) => (
+    <td key={period.key}>
+      {manualSurcharge ? (
+        <input
+          type="text"
+          inputMode="numeric"
+          value={manualSurchargeBeforeMR}
+          onChange={(e) =>
+            setManualSurchargeBeforeMR(e.target.value)
+          }
+          placeholder="Enter amount"
+        />
+      ) : (
+        <>₹ {formatCurrency(periodCalculation[period.key].rawSurcharge)}</>
+      )}
+    </td>
+  ))}
+</tr>
+
+<tr>
+  <td>Less: Marginal Relief</td>
+
+  {periods.map((period) => (
+    <td key={period.key}>
+      {manualSurcharge ? (
+        <input
+          type="text"
+          inputMode="numeric"
+          value={manualMarginalRelief}
+          onChange={(e) =>
+            setManualMarginalRelief(e.target.value)
+          }
+          placeholder="Enter amount"
+        />
+      ) : (
+        <>₹ {formatCurrency(periodCalculation[period.key].marginalRelief)}</>
+      )}
+    </td>
+  ))}
+</tr>
+
+<tr>
+  <td>Net Surcharge</td>
+
+  {periods.map((period) => (
+    <td key={period.key}>
+      {manualSurcharge ? (
+        <input
+          type="text"
+          inputMode="numeric"
+          value={manualNetSurcharge}
+          onChange={(e) =>
+            setManualNetSurcharge(e.target.value)
+          }
+          placeholder="Enter amount"
+        />
+      ) : (
+        <>₹ {formatCurrency(periodCalculation[period.key].surcharge)}</>
+      )}
+    </td>
+  ))}
+</tr>
+
+<tr>
+  <td>Cess @4%</td>
+
+  {periods.map((period) => (
+    <td key={period.key}>
+      ₹ {formatCurrency(periodCalculation[period.key].cess)}
+    </td>
+  ))}
+</tr>
+
+<tr>
+  <td>Tax + Surcharge + Cess</td>
+
+  {periods.map((period) => (
+    <td key={period.key}>
+      ₹ {formatCurrency(
+        periodCalculation[period.key].taxWithSurchargeAndCess
+      )}
+    </td>
+  ))}
+</tr>
+
+<tr>
+  <td>Less: TDS / TCS / Rebate / Relief / Credit</td>
+
+  {periods.map((period) => (
+    <td key={period.key}>
+      ₹ {formatCurrency(
+        periodCalculation[period.key].commonCreditAmount
+      )}
+    </td>
+  ))}
+</tr>
                     <tr className="c234-highlight-row">
                       <td>Balance Tax</td>
                       {periods.map((period) => <td key={period.key}>₹ {formatCurrency(periodCalculation[period.key].balanceTax)}</td>)}
@@ -1499,6 +1613,38 @@ const thresholdSurcharge =
         .c234-reset-btn:hover { border-color: #60a5fa; color: #ffffff; background: rgba(15,23,42,0.95); }
         @media (max-width: 1100px) { .c234-page { padding: 20px; } .c234-header { flex-direction: column; align-items: flex-start; } .c234-grid { grid-template-columns: 1fr; } .c234-result-panel { position: static; } }
         @media (max-width: 680px) { .c234-form-grid { grid-template-columns: 1fr; } .c234-result-item { flex-direction: column; } .c234-result-item strong { text-align: left; } }
+        /* BACK BUTTON */
+
+        .business-code-back-wrapper {
+         
+          margin-bottom: 20px;
+        }
+
+        .business-code-back-btn {
+          display: inline-flex;
+          align-items: center;
+          gap: 8px;
+          height: 46px;
+          padding: 0 20px;
+          border-radius: 14px;
+          border: 1px solid rgba(148, 163, 184, 0.22);
+          background: rgba(15, 23, 42, 0.9);
+          color: #cbd5e1;
+          font-size: 14px;
+          font-weight: 800;
+          cursor: pointer;
+          transition: all 0.2s ease;
+        }
+
+        .business-code-back-btn:hover {
+          border-color: #60a5fa;
+          color: #ffffff;
+          background: rgba(37, 99, 235, 0.12);
+        }
+
+        .business-code-back-btn span {
+          font-size: 18px;
+        }
       `}</style>
     </div>
   );

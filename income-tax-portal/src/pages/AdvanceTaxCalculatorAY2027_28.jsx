@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from "react";
 import html2pdf from "html2pdf.js";
-
+import { useNavigate } from "react-router-dom";
 export default function AdvanceTaxCalculatorAY2027_28() {
+  const navigate = useNavigate();
 useEffect(() => {
   window.scrollTo(0, 0);
 }, []);
@@ -3262,8 +3263,20 @@ newMarInterest,
 
 return (
     <>
+    
       <section className="content-section">
+        
       <div className="container">
+        <div className="business-code-back-wrapper">
+          <button
+            type="button"
+            className="business-code-back-btn"
+            onClick={() => navigate(-1)}
+          >
+            <span>←</span>
+            Back
+          </button>
+        </div>
       {/* Basic Details */}
       <div className="calc-grid">
       <div className="calc-card">

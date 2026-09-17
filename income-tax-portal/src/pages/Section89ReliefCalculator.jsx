@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import { useNavigate } from "react-router-dom";
 
 const AY_LIST = Array.from({ length: 2025 - 2003 + 1 }, (_, i) => {
   const y = 2003 + i;
@@ -34,7 +35,7 @@ const emptyRow = () => ({
 });
 
 export default function Section89ReliefCalculator() {
-
+  const navigate = useNavigate();
   const handleReset = () => {
   setRows(
     AY_LIST.map((ay) => ({
@@ -87,6 +88,16 @@ const handleCalculateArrear = () => {
 
   return (
     <div className="container">
+      <div className="business-code-back-wrapper">
+          <button
+            type="button"
+            className="business-code-back-btn"
+            onClick={() => navigate(-1)}
+          >
+            <span>←</span>
+            Back
+          </button>
+        </div>
 
       <h2>Section 89 Relief Calculator</h2>
 
