@@ -86,9 +86,9 @@ export default function TaxCalculatorPage() {
       onClick: () => navigate("/NSC_calculator"),
     },
     {
-      title: "Section 80G/Section 80GGC",
+      title: "Section 80G",
       description:
-        "Deduction under section 80G/80GGC Calculator.",
+        "calculate the deduction available for eligible donations under Section 80G of the Income Tax Act based on donation category and applicable qualifying limits.",
       badge: "Calculator",
       onClick: () =>
         navigate("/Section80G80GGC80GGBCalculator"),

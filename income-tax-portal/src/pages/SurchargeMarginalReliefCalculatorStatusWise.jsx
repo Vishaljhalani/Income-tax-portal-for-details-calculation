@@ -53,15 +53,16 @@ const selectedStatus = selectedStatusWise;
 <div
   style={{
     width: "100%",
-    maxWidth: "1400px",
-    margin: "0 auto",
+    maxWidth: "1300px",
+    padding: "10px",
+    background: "linear-gradient(135deg, rgb(16, 26, 49), rgb(19, 43, 80))"
   }}
 >
   {/* PAGE HEADER */}
   <div
     style={{
       background: "linear-gradient(135deg, #101a31, #132b50)",
-      border: "1px solid rgba(148,163,184,0.16)",
+      
       borderRadius: "22px",
       padding: "30px",
       marginBottom: "24px",

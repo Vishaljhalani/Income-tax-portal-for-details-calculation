@@ -34,10 +34,14 @@ import IncomeTaxAct2025Page from './pages/IncomeTaxAct2025Page';
 import IncomeTaxAct1961Page from './pages/IncomeTaxAct1961Page';
 import ComparisonPage from './pages/ComparisonPage';
 import NotFoundPage from './pages/NotFoundPage';
+import ScrollToTop from "./components/ScrollToTop";
 
 export default function App() {
   return (
-    <Routes>
+    <>
+      <ScrollToTop />
+
+      <Routes>
       <Route path="/" element={<Layout />}>
         <Route index element={<HomePage />} />
         <Route path="about" element={<AboutPage />} />
@@ -75,5 +79,6 @@ export default function App() {
         <Route path="*" element={<NotFoundPage />} />
       </Route>
     </Routes>
+    </>
   );
 }
