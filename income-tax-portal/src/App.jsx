@@ -5,6 +5,8 @@ import AboutPage from './pages/AboutPage';
 import ActsLawsPage from './pages/ActsLawsPage';
 import TaxCalculatorPage from './pages/TaxCalculatorPage';
 import BusinessCodeListPage from "./pages/BusinessCodeListPage";
+import TDSRateChartPage from './pages/TDSRateChartPage';
+import TCSRateChartPage from './pages/TCSRateChartPage';
 import AdvanceTaxCalculator from "./pages/AdvanceTaxCalculator";
 import HRA_Calculator from './pages/HRA_Calculator';
 import LeaveEncashmentCalculator from './pages/LeaveEncashmentCalculator';
@@ -47,6 +49,8 @@ export default function App() {
         <Route path="about" element={<AboutPage />} />
         <Route path="acts-laws" element={<ActsLawsPage />} />
         <Route path="/business-code-list" element={<BusinessCodeListPage />} />
+        <Route path="/tds-rate-chart" element={<TDSRateChartPage />} />
+        <Route path="/tcs-rate-chart" element={<TCSRateChartPage />} />
         <Route path="/AdvanceTaxCalculator" element={<AdvanceTaxCalculator />} />
         <Route path="HRA_Calculator" element={<HRA_Calculator />} />
         <Route path="LeaveEncashmentCalculator" element={<LeaveEncashmentCalculator />} />

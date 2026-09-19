@@ -16,6 +16,20 @@ export default function TaxCalculatorPage() {
       onClick: () => navigate("/business-code-list"),
     },
     {
+      title: "TDS Rate Chart",
+      description:
+        "TDS rates, applicable sections, threshold limits, and special provisions for different types of payments and deductees.",
+      badge: "Reference",
+      onClick: () => navigate("/tds-rate-chart"),
+    },
+    {
+      title: "TCS Rate Chart",
+      description:
+        "TCS rates, applicable sections, threshold limits, and special provisions for different types of payments and deductees.",
+      badge: "Reference",
+      onClick: () => navigate("/tcs-rate-chart"),
+    },
+    {
       title: "Advance Tax Calculator",
       description:
         "Calculate total tax liability and installment-wise advance tax payable.",

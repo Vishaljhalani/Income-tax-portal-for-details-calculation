@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import CalculationPrintReport from "../components/CalculationPrintReport";
 export default function Section234CCalculatorAY2026_27() {
   const navigate = useNavigate();
   const ASSESSMENT_YEAR = "2026-27";
