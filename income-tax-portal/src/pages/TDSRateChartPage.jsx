@@ -272,7 +272,7 @@ export default function TDSRateChartPage() {
             boxShadow: '0 0 40px rgba(37, 99, 235, 0.25)',
           }}
         >
-          <Table sx={{ minWidth: 1250 }} aria-label="TDS rate chart">
+          <Table sx={{ minWidth: 100}} aria-label="TDS rate chart">
             <TableHead sx={{ background: galaxy.headGradient }}>
               <TableRow>
                 <StyledTableCell align="center">Section Code</StyledTableCell>

@@ -1,5 +1,176 @@
 import React, { useMemo, useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+
+// ==========================================================================
+// FY 2026-27 (Tax Year 2026-27) — Income-tax Act, 2025
+// Source: TRACES TDS rate chart.
+//
+// Section label format:  NEW SECTION (OLD SECTION) - Description
+//
+// The chart rows below are kept exactly as received. The calculator entries
+// (label / threshold / rate) are generated from them by buildSection2026().
+// FY 2025-26 and older years keep using the original lists inside the
+// component — nothing there has been changed.
+// ==========================================================================
+const NEW_ACT_FY = "2026-27";
+
+const getFinancialYearLabel = (fy) =>
+  fy === NEW_ACT_FY ? `${fy} (Tax Year ${fy})` : fy;
+
+// Constants used inside the chart rows
+const CONTRACT_LIMIT = "30000"; // 194C single-payment limit (yearly limit 1,00,000 -> yearlyThreshold)
+const BOND_4A = "4%"; // 194LC(2)(ib)  - IFSC bond issued before 01-07-2023
+const BOND_4B = "9%"; // 194LC(2)(ic)  - IFSC bond issued on/after 01-07-2023
+const NR_RES = "10% - For Residents\n30% - For Non Resident";
+
+const tdsChart2026 = [
+  { code: '1004', old: '192A', sec: '392(7)', nature: 'Any payment of accumulated balance due to an employee', threshold: '50000', ind: '10%', other: '-' },
+
+  { code: '1005', old: '194D', sec: '393(1) [Table: Sl. No. 1(i)]', nature: 'Commission or brokerage - insurance', threshold: '20000', ind: '2%', other: '10%' },
+  { code: '1006', old: '194H', sec: '393(1) [Table: Sl. No. 1(ii)]', nature: 'Commission or brokerage - others', threshold: '20000', ind: '2%', other: '2%' },
+  { code: '', old: '', sec: '393(1) [Table: Sl. No. 2(i)]', nature: 'Payment of any other Rent', threshold: '50000', ind: '2%', other: '2%' },
+  { code: '1008', old: '194I(a)', sec: '393(1) [Table: Sl. No. 2(ii).D(a)]', nature: 'Rent on machinery etc.- specified person', threshold: '50000', ind: '2%', other: '2%' },
+  { code: '1009', old: '194I(b)', sec: '393(1) [Table: Sl. No. 2(ii).D(b)]', nature: 'Rent other than machinery etc.- specified person', threshold: '50000', ind: '10%', other: '10%' },
+  { code: '', old: '', sec: '393(1) [Table: Sl. No. 3(i)]', nature: 'TDS on transfer of immovable property under section 393(1) [Table: Sl. No. 3(i)]', threshold: '5000000', ind: '1%', other: '1%' },
+  { code: '', old: '', sec: '393(1) [Table: Sl.No. 2(i)]', nature: 'TDS on Rent paid by Individual/HUF under section 393(1) [Table Sl. No. 2(i)]', threshold: '50000', ind: '2%', other: '2%' },
+  { code: '1011', old: '194IC', sec: '393(1) [Table: Sl. No. 3(ii)]', nature: 'Payment on any consideration, not being consideration in kind, under the agreement referred to in section 67(14).', threshold: 'Nil', ind: '10%', other: '10%' },
+  { code: '1012', old: '194LA', sec: '393(1) [Table: Sl. No. 3(iii)]', nature: 'Payment of compensation on acquisition of certain immovable property', threshold: '500000', ind: '10%', other: '10%' },
+  { code: '1013', old: '194K', sec: '393(1) [Table: Sl. No. 4(i)]', nature: 'Income payable to a resident assessee in respect of Units of a specified Mutual Fund specified under Schedule VII [Table: Sl. No. 20 or 21] or units from the Administrator of the specified undertaking or units from specified company', threshold: '10000', ind: '10%', other: '10%' },
+  { code: '1014', old: '194LBA', sec: '393(1) [Table: Sl. No. 4(ii)]', nature: 'Certain income in the form of interest from units of a business trust to a resident unit holder', threshold: 'Nil', ind: '10%', other: '10%' },
+  { code: '1015', old: '194LBA', sec: '393(1) [Table: Sl. No. 4(ii)]', nature: 'Certain income in the form of dividend from units of a business trust to a resident unit holder', threshold: 'Nil', ind: '10%', other: '10%' },
+  { code: '1016', old: '194LBA', sec: '393(1) [Table: Sl. No. 4(ii)]', nature: 'Certain income in the form of Renting from units of a business trust being a real estate investment trust to a resident unit holder', threshold: 'Nil', ind: '10%', other: '10%' },
+  { code: '1017', old: '194LBB', sec: '393(1) [Table: Sl. No. 4(iii)]', nature: 'Any income, other than that proportion of income which is exempt under Schedule V [Table: Sl. No. 2], in respect of units of an investment fund specified in section 224, payable to its unitholder.', threshold: 'Nil', ind: '10%', other: '10%' },
+  { code: '1018', old: '194LBC', sec: '393(1) [Table: Sl. No. 4(iv)]', nature: 'Any income, in respect of an investment in a securitisation trust specified in section 221 to an investor.', threshold: 'Nil', ind: '10%', other: '10%' },
+  { code: '1019', old: '193', sec: '393(1) [Table: Sl. No. 5(i)]', nature: 'Any income by way of Interest on securities', threshold: '10000', ind: '10%', other: '10%' },
+  { code: '1020', old: '194A', sec: '393(1) [Table: Sl. No. 5(ii).D(a)]', nature: 'Any income by way of interest other than interest on securities, in case of deductee/payee is a senior citizen', threshold: '100000', ind: '10%', other: '-' },
+  { code: '1021', old: '194A', sec: '393(1) [Table: Sl. No. 5(ii).D(b)]', nature: 'Any income by way of interest other than interest on securities, in case of deductee/payee is other than senior citizen', threshold: '50000', ind: '10%', other: '10%' },
+  { code: '1022', old: '194A', sec: '393(1) [Table: Sl. No. 5(iii)]', nature: 'Any income being interest other than interest on securities', threshold: '10000', ind: '10%', other: '10%' },
+  { code: '1023', old: '194C', sec: '393(1) [Table: Sl. No. 6(i).D(a)]', nature: 'Any sum for carrying out any work (including supply of labour for carrying out any work) in pursuance of a contract between the contractor and a designated person – if contractor is individual or Hindu undivided family', threshold: CONTRACT_LIMIT, ind: '1%', other: '2%' },
+  { code: '1024', old: '194C', sec: '393(1) [Table: Sl. No. 6(i).D(b)]', nature: 'Any sum for carrying out any work (including supply of labour for carrying out any work) in pursuance of a contract between the contractor and a designated person – if contractor is a person other than individual or Hindu undivided family', threshold: CONTRACT_LIMIT, ind: '1%', other: '2%' },
+  { code: '', old: '', sec: '393(1) [Table: Sl. No. 6(ii)]', nature: 'TDS on payment made by individual_huf to Contractor / Professionals u/s. 393(1) [Table Sl. No. 6(ii)]', threshold: '5000000', ind: '2%', other: '-' },
+  { code: '1026', old: '194J(a)', sec: '393(1) [Table: Sl. No. 6(iii).D(a)]', nature: 'Any sum by way of–– (a) fees for technical services (not being a professional services); or (b) royalty in the nature of consideration for sale, distribution or exhibition of cinematographic films; or (c) payee, engaged only in the business of operation of call centre', threshold: '50000', ind: '2%', other: '2%' },
+  { code: '1027', old: '194J(b)', sec: '393(1) [Table: Sl. No. 6(iii).D(b)]', nature: 'Any sum by way of–– (a) fees for professional services; or (b) any sum referred to in section 26(2)(h)', threshold: '50000', ind: '10%', other: '10%' },
+  { code: '1028', old: '194J(b)', sec: '393(1) [Table: Sl. No. 6(iii).D(b)]', nature: 'Any sum by way of remuneration or fees or commission by whatever name called, other than those on which tax is deductible under section 392, to a director of a company', threshold: '–', ind: '10%', other: '10%' },
+  { code: '1029', old: '194', sec: '393(1) [Table: Sl. No. 7]', nature: 'Any dividends (including on preference shares) declared.', threshold: '10000(Individual)', ind: '10%', other: '10%' },
+  { code: '1030', old: '194DA', sec: '393(1) [Table: Sl. No. 8(i)]', nature: 'Any sum under a life insurance policy, including the sum allocated as bonus on such policy, other than the amount not includible in the total income under Schedule II [Table: Sl. No. 2]', threshold: '100000', ind: '2%', other: '2%' },
+  { code: '1031', old: '194Q', sec: '393(1) [Table: Sl. No. 8(ii)]', nature: 'Any sum for purchase of any goods', threshold: 'in excess of 5000000', ind: '0.10%', other: '0.10%' },
+  { code: '1033', old: '194R', sec: '393(1) [Table: Sl. No. 8(iv)]', nature: 'Any benefit or perquisite, whether convertible into money or not, arising from business or the exercise of a profession of any resident.', threshold: '20000', ind: '10%', other: '10%' },
+  { code: '', old: '', sec: '393(1) [Table: Sl. No. 8(iv) Note 6]', nature: 'Any benefit or perquisite, whether in cash or in kind or partly in cash and partly in kind, whether convertible into money or not, arising from business or the exercise of a profession of any resident.', threshold: '20000', ind: '10%', other: '10%' },
+  { code: '1035', old: '194O', sec: '393(1) [Table: Sl. No. 8(v)]', nature: 'Sale of goods or provision of services by an e-commerce participant, facilitated by an e-commerce operator through its digital or electronic facility or platform. - any e commerce operator', threshold: '500000(Individual/HUF)', ind: '0.10%', other: '0.10%' },
+  { code: '1037', old: '194S', sec: '393(1) [Table: Sl. No. 8(vi)]', nature: 'Any sum by way of consideration for transfer of a virtual digital asset by other than Individual or Hindu Undivided Family.', threshold: '10000', ind: '1%', other: '1%' },
+  { code: '', old: '', sec: '393(1) [Table: Sl. No. 8(vi)]', nature: 'Any sum by way of consideration for transfer of a virtual digital asset by Individual or Hindu Undivided Family 393(1) [Table: Sl. No. 8(vi)]', threshold: '50000', ind: '1%', other: '1%' },
+  { code: '', old: '', sec: '393(1) [Table: Sl. No. 8(vi)] Note 6', nature: 'Any sum by way of consideration, whether in cash or in kind or partly in cash and partly in kind, for transfer of a virtual digital asset', threshold: '10000', ind: '1%', other: '1%' },
+
+  { code: '1039', old: '194E', sec: '393(2) [Table: Sl. No. 1]', nature: 'Any income referred to in section 211.', threshold: '-', ind: '20%', other: '20%' },
+  { code: '1040', old: '194LC (2)(i)', sec: '393(2) [Table: Sl. No. 2]', nature: 'Any income by way of interest payable in respect of moneys borrowed in foreign currency from a source outside India,— (a) under a loan agreement or issue of long term infrastructure bond on or after the 1st July, 2012 but before the 1st July, 2023; or (b) by way of issue of any long-term bond on or after the 1st October, 2014 but before the 1st July, 2023, which is approved by the Central Government in this behalf (for non resident payee)', threshold: '-', ind: '5%', other: '5%' },
+  { code: '1041', old: '194LC (2)(ia)', sec: '393(2) [Table: Sl. No. 3]', nature: 'Any income by way of interest payable in respect of monies borrowed from a source outside India by way of issue of rupee denominated bond before the 1st July, 2023.', threshold: '-', ind: '5%', other: '5%' },
+  { code: '1042', old: '194LC (2)(ib)', sec: '393(2) [Table: Sl. No. 4.E(a)]', nature: 'Any income by way of interest payable in respect of monies borrowed from a source outside India by way of issue of any long-term bond or rupee denominated bond, which is listed only on a recognised stock exchange located in any International Financial Services Centre. - Issued on or after the 1st April, 2020 but before the 1st July, 2023', threshold: '-', ind: BOND_4A, other: BOND_4A },
+  { code: '1043', old: '194LC (2)(ic)', sec: '393(2) [Table: Sl. No. 4.E(b)]', nature: 'Any income by way of interest payable in respect of monies borrowed from a source outside India by way of issue of any long-term bond or rupee denominated bond, which is listed only on a recognised stock exchange located in any International Financial Services Centre - Issued on or after the 1st July, 2023', threshold: '-', ind: BOND_4B, other: BOND_4B },
+  { code: '1044', old: '194LB', sec: '393(2) [Table: Sl. No. 5]', nature: 'Income by way of interest from infrastructure debt fund', threshold: '-', ind: '5%', other: '5%' },
+  // Chart row "1045 / 1046" (5% Int or 10% Rental) is split in two so each can be selected separately
+  { code: '1045', old: '194LBA', sec: '393(2) [Table: Sl. No. 6.E(a)]', nature: 'Any distributed income referred to in section 223, being of the nature referred to in Schedule V [Table: Sl. No. 3.B(a)] – Interest', threshold: '-', ind: '5%', other: '5%' },
+  { code: '1046', old: '194LBA', sec: '393(2) [Table: Sl. No. 6.E(b)]', nature: 'Any distributed income referred to in section 223, being of the nature referred to in Schedule V [Table: Sl. No. 3.B(b)] – Rental', threshold: '-', ind: '10%', other: '10%' },
+  { code: '1047', old: '194LBA', sec: '393(2) [Table: Sl. No. 7]', nature: 'Distributed income from business trust (Schedule V, Table 4)\nOther Distributed income – could be capital gains , dividends, misc income', threshold: '-', ind: '30%', other: '35% - For Non Residents Company\n30% - For Non Residents other than companies' },
+  { code: '1048', old: '194LBB', sec: '393(2) [Table: Sl. No. 8]', nature: 'Income from investment funds (Section 224)', threshold: '-', ind: '10% - For Residents\n30% - For Non Resident', other: NR_RES },
+  { code: '1049', old: '194LBC', sec: '393(2) [Table: Sl. No. 9]', nature: 'Income from securitisation trust (Section 221)', threshold: '-', ind: '30%', other: NR_RES },
+  { code: '1050', old: '196A', sec: '393(2) [Table: Sl. No. 10]', nature: 'Income from mutual funds or specified company', threshold: '-', ind: '20% or rate provided in the agreement, whichever is lower', other: '20% or rate provided in the agreement, whichever is lower\n* Not Applicable for company' },
+  { code: '1051', old: '196B', sec: '393(2) [Table: Sl. No. 11]', nature: 'Income from units referred to in Section 208', threshold: '-', ind: '10%', other: '10%' },
+  { code: '1052', old: '196B', sec: '393(2) [Table: Sl. No. 12]', nature: 'Long-term capital gains from transfer of units referred in Section 208', threshold: '-', ind: '12.5%', other: '12.5%' },
+  { code: '1053', old: '196C', sec: '393(2) [Table: Sl. No. 13]', nature: 'Interest or dividends from bonds or GDRs (Section 209)', threshold: '-', ind: '10%', other: '10%' },
+  { code: '1054', old: '196C', sec: '393(2) [Table: Sl. No. 14]', nature: 'Long-term capital gains from transfer of bonds or GDRs (Section 209)', threshold: '-', ind: '12.5%', other: '12.5%' },
+  { code: '1055', old: '196D', sec: '393(2) [Table: Sl. No. 15]', nature: 'Income from securities referred in Section 210', threshold: '-', ind: '20%', other: '20%' },
+  { code: '1056', old: '196D(1A)', sec: '393(2) [Table: Sl. No. 16]', nature: 'Any income in respect of securities referred to in section 210(1)', threshold: '-', ind: '10%', other: '10%' },
+  { code: '1057', old: '195', sec: '393(2) [Table: Sl. No. 17]', nature: 'Any interest (not covered under S.No. 2–5) or any other sum chargeable under the Act (excluding salaries)', threshold: '-', ind: '-', other: 'Average rate as applicable' },
+
+  { code: '1058', old: '194B', sec: '393(3) [Table: Sl. No. 1]', nature: 'Any income by way of winnings (other than winnings from Sl. No. 2 of the table at section 393(3)) from–– (a) any lottery; or (b) crossword puzzle; or (c) card game and other game of any sort; or (d) gambling or betting of any form or nature whatsoever', threshold: '10000 for a single transaction', ind: '30%', other: '30%' },
+  { code: '1060', old: '194BA', sec: '393(3) [Table: Sl. No. 2]', nature: 'Any income by way of winnings from online game.', threshold: '-', ind: '30%', other: '30%' },
+  { code: '1062', old: '194BB', sec: '393(3) [Table: Sl. No. 3]', nature: 'Any income by way of winnings from any horse race.', threshold: '10000 for a single transaction', ind: '30%', other: '30%' },
+  { code: '1063', old: '194G', sec: '393(3) [Table: Sl. No. 4]', nature: 'Any income, credited or paid to a person, who is or has been stocking, distributing, purchasing or selling lottery tickets, by way of commission, remuneration or prize (by whatever name called) on such tickets', threshold: '20000', ind: '2%', other: '2%' },
+  { code: '1064', old: '194NC', sec: '393(3) [Table: Sl. No. 5.D(a)]', nature: 'Payment of certain amounts in cash by bank/ post office / co-operative society to a deductee being a co-operative society', threshold: '3 crore', ind: '2%', other: '2%' },
+  { code: '1065', old: '194N', sec: '393(3) [Table: Sl. No. 5.D(b)]', nature: 'Payment of certain amounts in cash by bank/ post office / co-operative society to a deductee being a person other than co-operative society', threshold: '1 crore', ind: '2%', other: '2%' },
+  { code: '1066', old: '194EE', sec: '393(3) [Table: Sl. No. 6]', nature: 'Any amount referred to in section 80CCA(2)(a) of the Income-tax Act, 1961 (43 of 1961).', threshold: '2500', ind: '10%', other: '10%' },
+  { code: '1067', old: '194T', sec: '393(3) [Table: Sl. No. 7]', nature: 'Any sum in the nature of salary, remuneration, commission, bonus or interest paid to a partner of the firm or credited to his account (including capital account).', threshold: '20000', ind: '-', other: '10%' },
+];
+
+// --------------------------------------------------------------------------
+// Calculator behaviour per chart row (keyed by chart code).
+//   logic             -> reuse the exact FY 2025-26 logic of that old section
+//                        (194C / 194D rate by category, 194N ITR filed / not
+//                        filed, 194T fixed calculation)
+//   cooperative       -> 194NC (true) / 194N (false) threshold row
+//   nonResidentRate   -> rate to use when residential status = Non-Resident
+//   foreignCompanyRate-> rate when recipient category = Foreign Company
+// --------------------------------------------------------------------------
+const CALC_CONFIG_2026 = {
+  "1005": { logic: "194D" },
+  "1023": { logic: "194C", yearlyThreshold: 100000 },
+  "1024": { logic: "194C", yearlyThreshold: 100000 },
+  "1047": { foreignCompanyRate: 35 },
+  "1048": { nonResidentRate: 30 },
+  "1064": { logic: "194N", cooperative: true, rate: "2% / 5% conditional" },
+  "1065": { logic: "194N", cooperative: false, rate: "2% / 5% conditional" },
+  "1067": { logic: "194T" },
+};
+
+// "10%" -> 10, "0.10%" -> 0.1, "-" -> null
+const toRate = (value) => {
+  const match = String(value ?? "").match(/^\s*(\d+(?:\.\d+)?)\s*%/);
+  return match ? Number(match[1]) : null;
+};
+
+// "Nil" / "-" -> 0, "3 crore" -> 30000000, "in excess of 5000000" -> 5000000
+const parseThreshold = (value) => {
+  const text = String(value ?? "").toLowerCase();
+  const crore = text.match(/(\d+(?:\.\d+)?)\s*crore/);
+  if (crore) return Number(crore[1]) * 10000000;
+  const digits = text.match(/\d+/);
+  return digits ? Number(digits[0]) : 0;
+};
+
+const buildSection2026 = (row, index) => {
+  const config = CALC_CONFIG_2026[row.code] || {};
+  const ind = toRate(row.ind);
+  const other = toRate(row.other);
+  const flatRate = ind !== null ? ind : other;
+
+  const rateText =
+    ind !== null && other !== null && ind !== other
+      ? `${ind}% Individual/HUF, ${other}% Others`
+      : flatRate !== null
+      ? `${flatRate}%`
+      : "As applicable";
+
+  const nature = String(row.nature).replace(/\s*\n\s*/g, " ");
+  const oldSection = row.old ? ` (${row.old})` : "";
+
+  return {
+    code: row.code || `NA-${index + 1}`,
+    isNewAct: true,
+    sectionText: `${row.sec}${oldSection}`,
+    label: `${row.sec}${oldSection} - ${nature}`,
+    description: nature,
+    threshold: parseThreshold(row.threshold),
+    rate: rateText,
+    nonResidentRate: flatRate !== null ? flatRate : undefined,
+    ...config,
+  };
+};
+
+const sections2026 = tdsChart2026.map((row, index) => ({
+  row,
+  entry: buildSection2026(row, index),
+}));
+
+// 392(7) + 393(1) + 393(3)
+const residentTDSSections2026 = sections2026
+  .filter(({ row }) => !row.sec.startsWith("393(2)"))
+  .map(({ entry }) => entry);
+
+// 392(7) + 393(2) + 393(3) (194NC is only for co-operative society deductee)
+const nonResidentTDSSections2026 = sections2026
+  .filter(({ row }) => !row.sec.startsWith("393(1)") && row.code !== "1064")
+  .map(({ entry }) => entry);
+
 export default function TDSCalculatorPage() {
      const navigate = useNavigate();
   const recipientCategories = [
@@ -26,6 +197,7 @@ export default function TDSCalculatorPage() {
     "2023-24",
     "2024-25",
     "2025-26",
+    "2026-27",
   ];
 
   const residentTDSSections = [
@@ -599,17 +771,54 @@ const section195Master = [
   paymentDate: "",
   sectionSubtype: "default",
   itrFiled: "yes",
+  yearlyAboveThreshold: "",
 };
   const [form, setForm] = useState(defaultForm);
   const [result, setResult] = useState(null);
   const [isResetting, setIsResetting] = useState(false);
-  const tdsSections =
+
+  // FY 2026-27 (Tax Year 2026-27) uses the new section lists;
+  // every other FY keeps the original lists.
+  const isNewActFY = form.financialYear === NEW_ACT_FY;
+
+  const oldTdsSections =
   form.residentialStatus === "resident"
     ? residentTDSSections
     : [...nonResidentTDSSections, ...section195Master];
+
+  const tdsSections = isNewActFY
+    ? form.residentialStatus === "resident"
+      ? residentTDSSections2026
+      : nonResidentTDSSections2026
+    : oldTdsSections;
   
   const update = (key, value) => {
     setForm((prev) => ({ ...prev, [key]: value }));
+  };
+
+  // Changing the section clears the "total paid during the year" answer
+  const handleSectionChange = (value) => {
+    setForm((prev) => ({ ...prev, section: value, yearlyAboveThreshold: "" }));
+  };
+
+  // Section codes and payment dates differ between FY 2026-27 and older FYs,
+  // so clear them when the person switches between the two.
+  const handleFinancialYearChange = (value) => {
+    setForm((prev) => {
+      const switchedRegime =
+        (prev.financialYear === NEW_ACT_FY) !== (value === NEW_ACT_FY);
+
+      return switchedRegime
+        ? {
+            ...prev,
+            financialYear: value,
+            section: "",
+            thresholdInput: "",
+            paymentDate: "",
+            yearlyAboveThreshold: "",
+          }
+        : { ...prev, financialYear: value };
+    });
   };
 
   const selectedSection = useMemo(() => {
@@ -742,7 +951,7 @@ if (
 
     if (amount <= threshold) return "0.00";
 
-    return (((amount - threshold) * rate) / 100).toFixed(2);
+    return ((amount * rate) / 100).toFixed(2);
   }
 
  // =========================
@@ -787,7 +996,7 @@ if (
 
     if (amount <= threshold) return "0.00";
 
-    return (((amount - threshold) * 10) / 100).toFixed(2);
+    return ((amount * 10) / 100).toFixed(2);
   }
 
  // =========================
@@ -801,9 +1010,188 @@ if (
     }
 
     const rate = getRate();
-    return (((amount - threshold) * rate) / 100).toFixed(2);
+    return ((amount * rate) / 100).toFixed(2);
    
   };
+
+  // ==========================================================
+  // FY 2026-27 (Tax Year 2026-27) — separate calculation
+  // Same rules as FY 2025-26; FY 2026-27 rows point to the old
+  // section logic (194C / 194D / 194N / 194T) through `logic`.
+  // ==========================================================
+  const getRate2026 = () => {
+    if (!selectedSection) return 0;
+
+    const logicCode = selectedSection.logic || form.section;
+    let rate = 0;
+
+    if (form.residentialStatus === "nonResident") {
+      rate =
+        form.recipientCategory === "Foreign Company" &&
+        selectedSection.foreignCompanyRate
+          ? Number(selectedSection.foreignCompanyRate)
+          : Number(selectedSection.nonResidentRate) || 20;
+    } else {
+      switch (logicCode) {
+        case "194C":
+          rate =
+            form.recipientCategory === "Individual" ||
+            form.recipientCategory === "HUF"
+              ? 1
+              : 2;
+          break;
+
+        case "194D":
+          rate =
+            form.recipientCategory === "Individual" ||
+            form.recipientCategory === "HUF"
+              ? 2
+              : 10;
+          break;
+
+        default:
+          rate =
+            Number(
+              String(selectedSection.rate || "")
+                .replace("%", "")
+                .replace("Slab Rates", "0")
+            ) || 0;
+      }
+    }
+
+    if (form.panNotAvailable && rate < 20) {
+      rate = 20;
+    }
+
+    return rate;
+  };
+
+  const calculateTDS2026 = () => {
+    if (!selectedSection) return "0.00";
+
+    if (
+      form.paymentDate &&
+      (form.paymentDate < "2026-04-01" || form.paymentDate > "2027-03-31")
+    ) {
+      return "Invalid Date for FY 2026-27";
+    }
+
+    const amount = Number(form.amount) || 0;
+    const logicCode = selectedSection.logic || form.section;
+
+    // 194N / 194NC
+    if (logicCode === "194N") {
+      const itrFiled = form.itrFiled === "yes";
+      const isCooperativeSociety = selectedSection.cooperative === true;
+
+      let tds = 0;
+
+      if (itrFiled) {
+        const threshold =
+          form.residentialStatus === "resident" && isCooperativeSociety
+            ? 30000000
+            : 10000000;
+
+        if (amount > threshold) {
+          tds = (amount - threshold) * 0.02;
+        }
+      } else {
+        if (amount <= 2000000) {
+          tds = 0;
+        } else if (amount <= 10000000) {
+          tds = (amount - 2000000) * 0.02;
+        } else {
+          tds =
+            (10000000 - 2000000) * 0.02 +
+            (amount - 10000000) * 0.05;
+        }
+      }
+
+      return tds.toFixed(2);
+    }
+
+    // 194T
+    if (logicCode === "194T") {
+      const threshold = 20000;
+
+      if (amount <= threshold) return "0.00";
+
+      return ((amount * 10) / 100).toFixed(2);
+    }
+
+    // Normal TDS logic
+    const threshold =
+      Number(form.thresholdInput) || selectedSection?.threshold || 0;
+
+    if (amount <= threshold) {
+      return 0;
+    }
+
+    const rate = getRate2026();
+    return ((amount * rate) / 100).toFixed(2);
+  };
+
+  // What the screen shows: FY 2026-27 uses the new functions,
+  // every other FY uses the original ones above.
+  const displayRate = () => (isNewActFY ? getRate2026() : getRate());
+
+  // ==========================================================
+  // Amount paid / credited at or below the threshold (all years)
+  // Ask: is the total paid/credited during the year above the
+  // threshold?  Yes -> TDS on the paid amount at the applicable rate.
+  // No -> "TDS is not deductible".
+  // 194N / 194NC keep their own ITR-based slab logic and are excluded.
+  // ==========================================================
+  const NOT_DEDUCTIBLE_MESSAGE = "TDS is not deductible";
+
+  const getEffectiveThreshold = () => {
+    if (!selectedSection) return null;
+
+    const logicCode = selectedSection.logic || form.section;
+
+    if (logicCode === "194N") return null;
+    if (logicCode === "194T") return 20000;
+
+    if (
+      form.residentialStatus === "nonResident" &&
+      form.section.startsWith("195-")
+    ) {
+      return selectedSection.threshold || 0;
+    }
+
+    return Number(form.thresholdInput) || selectedSection.threshold || 0;
+  };
+
+  const enteredAmount = Number(form.amount) || 0;
+  const effectiveThreshold = getEffectiveThreshold();
+
+  const showYearlyThresholdQuestion =
+    effectiveThreshold !== null &&
+    enteredAmount > 0 &&
+    enteredAmount <= effectiveThreshold;
+
+  const displayTDS = () => {
+    const regular = isNewActFY ? calculateTDS2026() : calculateTDS();
+
+    if (typeof regular === "string" && regular.startsWith("Invalid Date")) {
+      return regular;
+    }
+
+    if (!showYearlyThresholdQuestion) return regular;
+
+    if (form.yearlyAboveThreshold === "no") return NOT_DEDUCTIBLE_MESSAGE;
+
+    if (form.yearlyAboveThreshold === "yes") {
+      const logicCode = selectedSection.logic || form.section;
+      const rate = logicCode === "194T" ? 10 : displayRate();
+      return ((enteredAmount * rate) / 100).toFixed(2);
+    }
+
+    return "0.00";
+  };
+
+  const formatTDS = (value) =>
+    value === NOT_DEDUCTIBLE_MESSAGE ? value : `₹ ${value}`;
 
   const resetForm = () => {
   setForm(defaultForm);
@@ -834,7 +1222,11 @@ return (
 
         <div className="tds-modern-badge">
           <span>Financial Year</span>
-          <strong>{form.financialYear || "Not Selected"}</strong>
+          <strong>
+            {form.financialYear
+              ? getFinancialYearLabel(form.financialYear)
+              : "Not Selected"}
+          </strong>
         </div>
       </div>
 
@@ -853,11 +1245,11 @@ return (
               <label>Financial Year <span>*</span></label>
               <select
                 value={form.financialYear}
-                onChange={(e) => update("financialYear", e.target.value)}
+                onChange={(e) => handleFinancialYearChange(e.target.value)}
               >
                 <option value="">Select FY</option>
                 {financialYears.map((fy) => (
-                  <option key={fy} value={fy}>{fy}</option>
+                  <option key={fy} value={fy}>{getFinancialYearLabel(fy)}</option>
                 ))}
               </select>
             </div>
@@ -898,12 +1290,12 @@ return (
               <label>Section / Description <span>*</span></label>
               <select
                 value={form.section}
-                onChange={(e) => update("section", e.target.value)}
+                onChange={(e) => handleSectionChange(e.target.value)}
               >
                 <option value="">Select Section</option>
                 {tdsSections.map((s) => (
                   <option key={s.code} value={s.code}>
-                    {s.code} - {s.label}
+                    {s.isNewAct ? s.label : `${s.code} - ${s.label}`}
                   </option>
                 ))}
               </select>
@@ -923,8 +1315,8 @@ return (
               <label>Payment Date <span>*</span></label>
               <input
                 type="date"
-                min="2025-04-01"
-                max="2026-03-31"
+                min={isNewActFY ? "2026-04-01" : "2025-04-01"}
+                max={isNewActFY ? "2027-03-31" : "2026-03-31"}
                 value={form.paymentDate}
                 onChange={(e) => update("paymentDate", e.target.value)}
               />
@@ -951,6 +1343,23 @@ return (
               </select>
             </div>
 
+            {showYearlyThresholdQuestion && (
+              <div className="tds-field tds-field-wide">
+                <label>
+                  Whether total amount paid / credited during the year is more
+                  than above threshold limit? <span>*</span>
+                </label>
+                <select
+                  value={form.yearlyAboveThreshold}
+                  onChange={(e) => update("yearlyAboveThreshold", e.target.value)}
+                >
+                  <option value="">Select</option>
+                  <option value="yes">Yes</option>
+                  <option value="no">No</option>
+                </select>
+              </div>
+            )}
+
             <div className="tds-check-box">
               <input
                 type="checkbox"
@@ -975,14 +1384,14 @@ return (
         <div className="tds-result-panel">
           <div className="tds-result-head">
             <p>Computation Summary</p>
-            <h2>₹ {calculateTDS()}</h2>
+            <h2>{formatTDS(displayTDS())}</h2>
             <span>Total TDS Amount</span>
           </div>
 
           <div className="tds-result-list">
             <div className="tds-result-item">
               <span>Applicable Rate</span>
-              <strong>{getRate()}%</strong>
+              <strong>{displayRate()}%</strong>
             </div>
 
             <div className="tds-result-item">
@@ -997,12 +1406,12 @@ return (
 
             <div className="tds-result-item">
               <span>Selected Section</span>
-              <strong>{form.section || "-"}</strong>
+              <strong>{selectedSection?.sectionText || form.section || "-"}</strong>
             </div>
 
             <div className="tds-result-item final">
               <span>Final TDS</span>
-              <strong>₹ {calculateTDS()}</strong>
+              <strong>{formatTDS(displayTDS())}</strong>
             </div>
           </div>
         </div>
@@ -1171,6 +1580,10 @@ return (
         color: #ffffff;
       }
 
+      .tds-field-wide {
+        grid-column: span 2;
+      }
+
       .tds-check-box {
         grid-column: span 2;
         display: flex;
@@ -1334,7 +1747,8 @@ return (
           grid-template-columns: 1fr;
         }
 
-        .tds-check-box {
+        .tds-check-box,
+        .tds-field-wide {
           grid-column: span 1;
         }
 
