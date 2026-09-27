@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect } from "react";
+import React, { useMemo, useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 
 // ==========================================================================
@@ -18,7 +18,8 @@ const getFinancialYearLabel = (fy) =>
   fy === NEW_ACT_FY ? `${fy} (Tax Year ${fy})` : fy;
 
 // Constants used inside the chart rows
-const CONTRACT_LIMIT = "30000"; // 194C single-payment limit (yearly limit 1,00,000 -> yearlyThreshold)
+const CONTRACT_LIMIT = "30000"; // 194C single-payment limit
+const CONTRACT_AGGREGATE_LIMIT = "100000"; // 194C aggregate-during-the-year limit
 const BOND_4A = "4%"; // 194LC(2)(ib)  - IFSC bond issued before 01-07-2023
 const BOND_4B = "9%"; // 194LC(2)(ic)  - IFSC bond issued on/after 01-07-2023
 const NR_RES = "10% - For Residents\n30% - For Non Resident";
@@ -45,8 +46,10 @@ const tdsChart2026 = [
   { code: '1020', old: '194A', sec: '393(1) [Table: Sl. No. 5(ii).D(a)]', nature: 'Any income by way of interest other than interest on securities, in case of deductee/payee is a senior citizen', threshold: '100000', ind: '10%', other: '-' },
   { code: '1021', old: '194A', sec: '393(1) [Table: Sl. No. 5(ii).D(b)]', nature: 'Any income by way of interest other than interest on securities, in case of deductee/payee is other than senior citizen', threshold: '50000', ind: '10%', other: '10%' },
   { code: '1022', old: '194A', sec: '393(1) [Table: Sl. No. 5(iii)]', nature: 'Any income being interest other than interest on securities', threshold: '10000', ind: '10%', other: '10%' },
-  { code: '1023', old: '194C', sec: '393(1) [Table: Sl. No. 6(i).D(a)]', nature: 'Any sum for carrying out any work (including supply of labour for carrying out any work) in pursuance of a contract between the contractor and a designated person – if contractor is individual or Hindu undivided family', threshold: CONTRACT_LIMIT, ind: '1%', other: '2%' },
-  { code: '1024', old: '194C', sec: '393(1) [Table: Sl. No. 6(i).D(b)]', nature: 'Any sum for carrying out any work (including supply of labour for carrying out any work) in pursuance of a contract between the contractor and a designated person – if contractor is a person other than individual or Hindu undivided family', threshold: CONTRACT_LIMIT, ind: '1%', other: '2%' },
+  { code: '1023', old: '194C', sec: '393(1) [Table: Sl. No. 6(i).D(a)]', nature: 'Any sum for carrying out any work (including supply of labour for carrying out any work) in pursuance of a contract between the contractor and a designated person – if contractor is individual or Hindu undivided family (Single Payment)', threshold: CONTRACT_LIMIT, ind: '1%', other: '2%' },
+  { code: '1023-AGG', old: '194C', sec: '393(1) [Table: Sl. No. 6(i).D(a)]', nature: 'Any sum for carrying out any work (including supply of labour for carrying out any work) in pursuance of a contract between the contractor and a designated person – if contractor is individual or Hindu undivided family (Aggregate for the Year)', threshold: CONTRACT_AGGREGATE_LIMIT, ind: '1%', other: '2%' },
+  { code: '1024', old: '194C', sec: '393(1) [Table: Sl. No. 6(i).D(b)]', nature: 'Any sum for carrying out any work (including supply of labour for carrying out any work) in pursuance of a contract between the contractor and a designated person – if contractor is a person other than individual or Hindu undivided family (Single Payment)', threshold: CONTRACT_LIMIT, ind: '1%', other: '2%' },
+  { code: '1024-AGG', old: '194C', sec: '393(1) [Table: Sl. No. 6(i).D(b)]', nature: 'Any sum for carrying out any work (including supply of labour for carrying out any work) in pursuance of a contract between the contractor and a designated person – if contractor is a person other than individual or Hindu undivided family (Aggregate for the Year)', threshold: CONTRACT_AGGREGATE_LIMIT, ind: '1%', other: '2%' },
   { code: '', old: '', sec: '393(1) [Table: Sl. No. 6(ii)]', nature: 'TDS on payment made by individual_huf to Contractor / Professionals u/s. 393(1) [Table Sl. No. 6(ii)]', threshold: '5000000', ind: '2%', other: '-' },
   { code: '1026', old: '194J(a)', sec: '393(1) [Table: Sl. No. 6(iii).D(a)]', nature: 'Any sum by way of–– (a) fees for technical services (not being a professional services); or (b) royalty in the nature of consideration for sale, distribution or exhibition of cinematographic films; or (c) payee, engaged only in the business of operation of call centre', threshold: '50000', ind: '2%', other: '2%' },
   { code: '1027', old: '194J(b)', sec: '393(1) [Table: Sl. No. 6(iii).D(b)]', nature: 'Any sum by way of–– (a) fees for professional services; or (b) any sum referred to in section 26(2)(h)', threshold: '50000', ind: '10%', other: '10%' },
@@ -94,23 +97,108 @@ const tdsChart2026 = [
 
 // --------------------------------------------------------------------------
 // Calculator behaviour per chart row (keyed by chart code).
-//   logic             -> reuse the exact FY 2025-26 logic of that old section
-//                        (194C / 194D rate by category, 194N ITR filed / not
-//                        filed, 194T fixed calculation)
-//   cooperative       -> 194NC (true) / 194N (false) threshold row
-//   nonResidentRate   -> rate to use when residential status = Non-Resident
-//   foreignCompanyRate-> rate when recipient category = Foreign Company
+//   logic       -> reuse the exact FY 2025-26 logic of that old section
+//                  (194C / 194D rate by category, 194N ITR filed / not filed)
+//   cooperative -> 194NC (true) / 194N (false) threshold row
+//
+// Every other row uses the chart's own "ind" (Individual/HUF) and "other"
+// (other than Individual/HUF) columns directly, picked by Recipient
+// Category. Where a column is "-" that category simply has no TDS under
+// that row (e.g. 392(7)/192A applies to Individual/HUF only; the partner
+// payment row 393(3)[Sl.No.7] applies to categories other than
+// Individual/HUF only) — so no TDS is calculated for it.
 // --------------------------------------------------------------------------
+
+// Rows whose ₹50,000 threshold under the chart is a MONTHLY limit — the
+// calculator only takes one "Amount Paid / Credited" value, so this note
+// clarifies what that single entered amount is being checked against.
+const MONTHLY_RENT_NOTE =
+  "This ₹50,000 threshold is per month — enter one payment's amount";
+
+// Two rent rows have no chart code, so they can't be targeted by code in
+// CALC_CONFIG_2026 — matched by their "sec" value instead (see
+// buildSection2026).
+const MONTHLY_RENT_SECS = new Set([
+  "393(1) [Table: Sl. No. 2(i)]",
+  "393(1) [Table: Sl.No. 2(i)]",
+]);
+
 const CALC_CONFIG_2026 = {
   "1005": { logic: "194D" },
-  "1023": { logic: "194C", yearlyThreshold: 100000 },
-  "1024": { logic: "194C", yearlyThreshold: 100000 },
-  "1047": { foreignCompanyRate: 35 },
-  "1048": { nonResidentRate: 30 },
-  "1064": { logic: "194N", cooperative: true, rate: "2% / 5% conditional" },
-  "1065": { logic: "194N", cooperative: false, rate: "2% / 5% conditional" },
-  "1067": { logic: "194T" },
+  "1008": { thresholdNote: MONTHLY_RENT_NOTE },
+  "1009": { thresholdNote: MONTHLY_RENT_NOTE },
+  "1023": {
+    logic: "194C",
+    thresholdNote: "Applies to a single sum credited/paid (not the aggregate for the year)",
+  },
+  "1023-AGG": {
+    logic: "194C",
+    thresholdNote:
+      "Applies when the aggregate of such sums credited/paid during the financial year exceeds this limit",
+  },
+  "1024": {
+    logic: "194C",
+    thresholdNote: "Applies to a single sum credited/paid (not the aggregate for the year)",
+  },
+  "1024-AGG": {
+    logic: "194C",
+    thresholdNote:
+      "Applies when the aggregate of such sums credited/paid during the financial year exceeds this limit",
+  },
+
+  // Threshold only applies to specific Recipient Categories; every other
+  // category has no threshold (TDS applies from the first rupee).
+  "1029": { thresholdByCategory: { Individual: 10000, default: 0 } },
+  "1035": {
+    thresholdByCategory: { Individual: 500000, HUF: 500000, default: 0 },
+  },
+
+  // Rate is 30% for everyone except a Foreign Company deductee (35%),
+  // regardless of Residential Status.
+  "1047": {
+    rateMatrix: {
+      resident: { "Foreign Company": 35, default: 30 },
+      nonResident: { "Foreign Company": 35, default: 30 },
+    },
+  },
+
+  // Applies to Resident and Non-Resident deductees alike — rate depends on
+  // Residential Status and (for non-residents) Recipient Category.
+  "1048": {
+    showInBothLists: true,
+    rateMatrix: {
+      resident: { default: 10 },
+      nonResident: { "Foreign Company": 35, default: 30 },
+    },
+  },
+  "1049": {
+    showInBothLists: true,
+    rateMatrix: {
+      resident: { Individual: 30, HUF: 30, default: 10 },
+      nonResident: { "Foreign Company": 35, default: 30 },
+    },
+  },
+
+  // Only applies when the deductee is a Co-operative Society.
+  "1064": {
+    logic: "194N",
+    cooperative: true,
+    restrictToCategory: ["Co-operative Society"],
+  },
+  "1065": { logic: "194N", cooperative: false },
+
+  "1045": { thresholdNote: "This rate applies to Interest" },
+  "1046": { thresholdNote: "This rate applies to Rental" },
+  "1058": { thresholdNote: "The ₹10,000 threshold applies per single transaction" },
+  "1062": { thresholdNote: "The ₹10,000 threshold applies per single transaction" },
 };
+
+
+
+// Rows where the chart gives no single fixed percentage even after the
+// above rules ("rate in force" / "average rate as applicable") — these
+// need the rate entered manually.
+const MANUAL_RATE_CODES = new Set(["1057"]);
 
 // "10%" -> 10, "0.10%" -> 0.1, "-" -> null
 const toRate = (value) => {
@@ -127,31 +215,74 @@ const parseThreshold = (value) => {
   return digits ? Number(digits[0]) : 0;
 };
 
+// Threshold that can vary by Recipient Category (1029 / 1035). Rows without
+// thresholdByCategory (including every FY 2025-26 and earlier entry) just
+// fall back to the row's own flat threshold, unchanged.
+const resolveThreshold2026 = (section, category) => {
+  if (!section) return 0;
+  if (!section.thresholdByCategory) return section.threshold;
+
+  if (category && section.thresholdByCategory[category] !== undefined) {
+    return section.thresholdByCategory[category];
+  }
+
+  return section.thresholdByCategory.default !== undefined
+    ? section.thresholdByCategory.default
+    : section.threshold;
+};
+
+// Rate that varies by Residential Status + Recipient Category (1047 / 1048
+// / 1049). Returns null when the row has no rateMatrix.
+const resolveRateMatrix2026 = (section, residentialStatus, category) => {
+  if (!section || !section.rateMatrix) return null;
+
+  const statusKey = residentialStatus === "nonResident" ? "nonResident" : "resident";
+  const catMap = section.rateMatrix[statusKey] || {};
+
+  if (category && catMap[category] !== undefined) return catMap[category];
+  return catMap.default !== undefined ? catMap.default : null;
+};
+
 const buildSection2026 = (row, index) => {
   const config = CALC_CONFIG_2026[row.code] || {};
-  const ind = toRate(row.ind);
-  const other = toRate(row.other);
-  const flatRate = ind !== null ? ind : other;
+  const indRate = toRate(row.ind);
+  const otherRate = toRate(row.other);
+  const manualRateRequired = MANUAL_RATE_CODES.has(row.code);
 
-  const rateText =
-    ind !== null && other !== null && ind !== other
-      ? `${ind}% Individual/HUF, ${other}% Others`
-      : flatRate !== null
-      ? `${flatRate}%`
-      : "As applicable";
+  const rateText = manualRateRequired
+    ? "Rate in force (enter manually)"
+    : indRate !== null && otherRate !== null && indRate === otherRate
+    ? `${indRate}%`
+    : indRate !== null && otherRate !== null
+    ? `${indRate}% Individual/HUF, ${otherRate}% Others`
+    : indRate !== null
+    ? `${indRate}% (Individual/HUF only)`
+    : otherRate !== null
+    ? `${otherRate}% (Other than Individual/HUF)`
+    : "As applicable";
 
   const nature = String(row.nature).replace(/\s*\n\s*/g, " ");
   const oldSection = row.old ? ` (${row.old})` : "";
+  // Show the chart's own numeric code (1004, 1005, ...) when the chart
+  // gives one; leave it out entirely for the handful of rows the chart
+  // left blank, rather than showing a made-up placeholder.
+  const codePrefix = row.code ? `${row.code} - ` : "";
+  const thresholdNote =
+    config.thresholdNote ||
+    (MONTHLY_RENT_SECS.has(row.sec) ? MONTHLY_RENT_NOTE : undefined);
 
   return {
     code: row.code || `NA-${index + 1}`,
     isNewAct: true,
-    sectionText: `${row.sec}${oldSection}`,
-    label: `${row.sec}${oldSection} - ${nature}`,
+    sectionText: `${codePrefix}${row.sec}${oldSection}`,
+    label: `${codePrefix}${row.sec}${oldSection} - ${nature}`,
     description: nature,
     threshold: parseThreshold(row.threshold),
     rate: rateText,
-    nonResidentRate: flatRate !== null ? flatRate : undefined,
+    indRate,
+    otherRate,
+    manualRateRequired,
+    thresholdNote,
     ...config,
   };
 };
@@ -161,15 +292,77 @@ const sections2026 = tdsChart2026.map((row, index) => ({
   entry: buildSection2026(row, index),
 }));
 
-// 392(7) + 393(1) + 393(3)
+// 392(7) + 393(1) + 393(3), plus any 393(2) row explicitly marked
+// showInBothLists (e.g. 1048 / 1049, which also apply to residents)
 const residentTDSSections2026 = sections2026
-  .filter(({ row }) => !row.sec.startsWith("393(2)"))
+  .filter(({ row, entry }) => !row.sec.startsWith("393(2)") || entry.showInBothLists)
   .map(({ entry }) => entry);
 
 // 392(7) + 393(2) + 393(3) (194NC is only for co-operative society deductee)
 const nonResidentTDSSections2026 = sections2026
   .filter(({ row }) => !row.sec.startsWith("393(1)") && row.code !== "1064")
   .map(({ entry }) => entry);
+
+// A dropdown whose open list shows the FULL option text, wrapped onto as
+// many lines as needed, inside a box the same width as the trigger (i.e.
+// the same width as every other input field) — a plain <select>'s native
+// popup either truncates long option text or grows wider than the screen,
+// neither of which this component does.
+function TdsWrapSelect({ value, onChange, options, getLabel, placeholder }) {
+  const [open, setOpen] = useState(false);
+  const containerRef = useRef(null);
+  const menuRef = useRef(null);
+
+  useEffect(() => {
+    const handleOutsideClick = (event) => {
+      if (containerRef.current && !containerRef.current.contains(event.target)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleOutsideClick);
+    return () => document.removeEventListener("mousedown", handleOutsideClick);
+  }, []);
+
+  useEffect(() => {
+    if (!open || !menuRef.current) return;
+    const selectedEl = menuRef.current.querySelector(".is-selected");
+    if (selectedEl) selectedEl.scrollIntoView({ block: "nearest" });
+  }, [open]);
+
+  const selected = options.find((option) => option.code === value);
+
+  return (
+    <div className="tds-wrap-select" ref={containerRef}>
+      <button
+        type="button"
+        className={`tds-wrap-select-trigger${open ? " is-open" : ""}`}
+        onClick={() => setOpen((prev) => !prev)}
+      >
+        <span>{selected ? getLabel(selected) : placeholder}</span>
+        <span className="tds-wrap-select-arrow">{open ? "▲" : "▼"}</span>
+      </button>
+
+      {open && (
+        <div className="tds-wrap-select-menu" ref={menuRef}>
+          {options.map((option) => (
+            <div
+              key={option.code}
+              className={`tds-wrap-select-option${
+                option.code === value ? " is-selected" : ""
+              }`}
+              onClick={() => {
+                onChange(option.code);
+                setOpen(false);
+              }}
+            >
+              {getLabel(option)}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function TDSCalculatorPage() {
      const navigate = useNavigate();
@@ -761,7 +954,7 @@ const section195Master = [
   },
 ];
   const defaultForm = {
-  financialYear: "",
+  financialYear: NEW_ACT_FY,
   residentialStatus: "",
   recipientCategory: "",
   panNotAvailable: false,
@@ -772,6 +965,7 @@ const section195Master = [
   sectionSubtype: "default",
   itrFiled: "yes",
   yearlyAboveThreshold: "",
+  manualRate: "",
 };
   const [form, setForm] = useState(defaultForm);
   const [result, setResult] = useState(null);
@@ -791,6 +985,19 @@ const section195Master = [
       ? residentTDSSections2026
       : nonResidentTDSSections2026
     : oldTdsSections;
+
+  // Rows restricted to a Recipient Category (e.g. 1064 — Co-operative
+  // Society only) are hidden from the dropdown until that category is
+  // picked. `tdsSections` itself stays unfiltered so an already-selected
+  // section can still be looked up (see the "clear invalid selection"
+  // effect below).
+  const visibleTdsSections = isNewActFY
+    ? tdsSections.filter((s) => {
+        if (!s.restrictToCategory) return true;
+        if (!form.recipientCategory) return true;
+        return s.restrictToCategory.includes(form.recipientCategory);
+      })
+    : tdsSections;
   
   const update = (key, value) => {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -798,7 +1005,12 @@ const section195Master = [
 
   // Changing the section clears the "total paid during the year" answer
   const handleSectionChange = (value) => {
-    setForm((prev) => ({ ...prev, section: value, yearlyAboveThreshold: "" }));
+    setForm((prev) => ({
+      ...prev,
+      section: value,
+      yearlyAboveThreshold: "",
+      manualRate: "",
+    }));
   };
 
   // Section codes and payment dates differ between FY 2026-27 and older FYs,
@@ -816,6 +1028,7 @@ const section195Master = [
             thresholdInput: "",
             paymentDate: "",
             yearlyAboveThreshold: "",
+            manualRate: "",
           }
         : { ...prev, financialYear: value };
     });
@@ -831,17 +1044,48 @@ const section195Master = [
 
   if (isResetting) return; // 👈 ADD THIS LINE
 
-  let threshold = 0;
-
-  if (selectedSection.threshold !== undefined) {
-    threshold = selectedSection.threshold;
-  }
+  // resolveThreshold2026 falls back to the section's own flat threshold for
+  // every row that has no per-category override, so this is unchanged for
+  // FY 2025-26 and earlier.
+  const threshold = resolveThreshold2026(selectedSection, form.recipientCategory);
 
   setForm((prev) => ({
     ...prev,
-    thresholdInput: threshold,
+    thresholdInput: threshold !== undefined ? threshold : 0,
   }));
 }, [form.section, isResetting]);
+
+  // Recipient Category changed after a category-dependent FY 2026-27 row
+  // (1029 / 1035) was already selected — refresh the threshold to match.
+  // Guarded to rows that actually have thresholdByCategory, so a manually
+  // edited threshold on any other section is left alone.
+  useEffect(() => {
+    if (!selectedSection) return;
+    if (isResetting) return;
+    if (!selectedSection.thresholdByCategory) return;
+
+    const threshold = resolveThreshold2026(selectedSection, form.recipientCategory);
+
+    setForm((prev) => ({ ...prev, thresholdInput: threshold }));
+  }, [form.recipientCategory]);
+
+  // Recipient Category changed to something that no longer matches a
+  // category-restricted row already selected (e.g. 1064 — Co-operative
+  // Society only) — clear the now-invalid selection.
+  useEffect(() => {
+    if (!selectedSection) return;
+    if (!selectedSection.restrictToCategory) return;
+    if (!form.recipientCategory) return;
+    if (selectedSection.restrictToCategory.includes(form.recipientCategory)) return;
+
+    setForm((prev) => ({
+      ...prev,
+      section: "",
+      thresholdInput: "",
+      manualRate: "",
+      yearlyAboveThreshold: "",
+    }));
+  }, [form.recipientCategory]);
 
   const getRate = () => {
     if (!selectedSection) return 0;
@@ -1019,47 +1263,48 @@ if (
   // Same rules as FY 2025-26; FY 2026-27 rows point to the old
   // section logic (194C / 194D / 194N / 194T) through `logic`.
   // ==========================================================
+  // Rate for FY 2026-27: picked from the chart's own "ind" (Individual/HUF)
+  // / "other" (other than Individual/HUF) columns by Recipient Category —
+  // same idea as the FY 2025-26 194C / 194D category split, applied to
+  // every row. A null result means the row genuinely does not apply to the
+  // selected category (chart shows "-"), so no TDS is calculated.
+  // Manual-rate rows (see MANUAL_RATE_CODES) use the rate typed in instead.
   const getRate2026 = () => {
-    if (!selectedSection) return 0;
+    if (!selectedSection) return null;
 
     const logicCode = selectedSection.logic || form.section;
-    let rate = 0;
+    const isIndOrHuf =
+      form.recipientCategory === "Individual" || form.recipientCategory === "HUF";
 
-    if (form.residentialStatus === "nonResident") {
+    let rate = null;
+
+    if (selectedSection.manualRateRequired) {
       rate =
-        form.recipientCategory === "Foreign Company" &&
-        selectedSection.foreignCompanyRate
-          ? Number(selectedSection.foreignCompanyRate)
-          : Number(selectedSection.nonResidentRate) || 20;
+        form.manualRate !== "" && form.manualRate !== undefined
+          ? Number(form.manualRate)
+          : null;
+    } else if (selectedSection.rateMatrix) {
+      rate = resolveRateMatrix2026(
+        selectedSection,
+        form.residentialStatus,
+        form.recipientCategory
+      );
     } else {
       switch (logicCode) {
         case "194C":
-          rate =
-            form.recipientCategory === "Individual" ||
-            form.recipientCategory === "HUF"
-              ? 1
-              : 2;
+          rate = isIndOrHuf ? 1 : 2;
           break;
 
         case "194D":
-          rate =
-            form.recipientCategory === "Individual" ||
-            form.recipientCategory === "HUF"
-              ? 2
-              : 10;
+          rate = isIndOrHuf ? 2 : 10;
           break;
 
         default:
-          rate =
-            Number(
-              String(selectedSection.rate || "")
-                .replace("%", "")
-                .replace("Slab Rates", "0")
-            ) || 0;
+          rate = isIndOrHuf ? selectedSection.indRate : selectedSection.otherRate;
       }
     }
 
-    if (form.panNotAvailable && rate < 20) {
+    if (rate !== null && form.panNotAvailable && rate < 20) {
       rate = 20;
     }
 
@@ -1069,10 +1314,11 @@ if (
   const calculateTDS2026 = () => {
     if (!selectedSection) return "0.00";
 
-    if (
-      form.paymentDate &&
-      (form.paymentDate < "2026-04-01" || form.paymentDate > "2027-03-31")
-    ) {
+    if (!form.paymentDate) {
+      return ENTER_DATE_MESSAGE_2026;
+    }
+
+    if (form.paymentDate < "2026-04-01" || form.paymentDate > "2027-03-31") {
       return "Invalid Date for FY 2026-27";
     }
 
@@ -1110,24 +1356,29 @@ if (
       return tds.toFixed(2);
     }
 
-    // 194T
-    if (logicCode === "194T") {
-      const threshold = 20000;
-
-      if (amount <= threshold) return "0.00";
-
-      return ((amount * 10) / 100).toFixed(2);
+    // Manual-rate row, rate not entered yet
+    if (selectedSection.manualRateRequired && form.manualRate === "") {
+      return ENTER_RATE_MESSAGE_2026;
     }
 
-    // Normal TDS logic
+    const rate = getRate2026();
+
+    // Section does not apply to the selected Recipient Category (chart
+    // shows "-" for that column)
+    if (rate === null) {
+      return NOT_APPLICABLE_MESSAGE_2026;
+    }
+
+    // Normal TDS logic (threshold can depend on Recipient Category)
     const threshold =
-      Number(form.thresholdInput) || selectedSection?.threshold || 0;
+      Number(form.thresholdInput) ||
+      resolveThreshold2026(selectedSection, form.recipientCategory) ||
+      0;
 
     if (amount <= threshold) {
       return 0;
     }
 
-    const rate = getRate2026();
     return ((amount * rate) / 100).toFixed(2);
   };
 
@@ -1143,6 +1394,10 @@ if (
   // 194N / 194NC keep their own ITR-based slab logic and are excluded.
   // ==========================================================
   const NOT_DEDUCTIBLE_MESSAGE = "TDS is not deductible";
+  const NOT_APPLICABLE_MESSAGE_2026 =
+    "Not applicable for this Recipient Category";
+  const ENTER_RATE_MESSAGE_2026 = "Enter the applicable rate to calculate";
+  const ENTER_DATE_MESSAGE_2026 = "Enter Payment Date to calculate";
 
   const getEffectiveThreshold = () => {
     if (!selectedSection) return null;
@@ -1159,6 +1414,14 @@ if (
       return selectedSection.threshold || 0;
     }
 
+    if (isNewActFY) {
+      return (
+        Number(form.thresholdInput) ||
+        resolveThreshold2026(selectedSection, form.recipientCategory) ||
+        0
+      );
+    }
+
     return Number(form.thresholdInput) || selectedSection.threshold || 0;
   };
 
@@ -1171,6 +1434,10 @@ if (
     enteredAmount <= effectiveThreshold;
 
   const displayTDS = () => {
+    if (isNewActFY && !form.paymentDate) {
+      return ENTER_DATE_MESSAGE_2026;
+    }
+
     const regular = isNewActFY ? calculateTDS2026() : calculateTDS();
 
     if (typeof regular === "string" && regular.startsWith("Invalid Date")) {
@@ -1184,6 +1451,13 @@ if (
     if (form.yearlyAboveThreshold === "yes") {
       const logicCode = selectedSection.logic || form.section;
       const rate = logicCode === "194T" ? 10 : displayRate();
+
+      if (rate === null || rate === undefined || Number.isNaN(rate)) {
+        return isNewActFY && selectedSection.manualRateRequired
+          ? ENTER_RATE_MESSAGE_2026
+          : NOT_APPLICABLE_MESSAGE_2026;
+      }
+
       return ((enteredAmount * rate) / 100).toFixed(2);
     }
 
@@ -1191,7 +1465,15 @@ if (
   };
 
   const formatTDS = (value) =>
-    value === NOT_DEDUCTIBLE_MESSAGE ? value : `₹ ${value}`;
+    Number.isNaN(Number(value)) ? value : `₹ ${value}`;
+
+  // "Applicable Rate" display: FY 2026-27 rates can legitimately be null
+  // (section not applicable to the selected category, or a manual rate not
+  // entered yet).
+  const formatRate = (value) =>
+    value === null || value === undefined || Number.isNaN(Number(value))
+      ? "N/A"
+      : `${value}%`;
 
   const resetForm = () => {
   setForm(defaultForm);
@@ -1286,20 +1568,46 @@ return (
               </select>
             </div>
 
-            <div className="tds-field">
-              <label>Section / Description <span>*</span></label>
-              <select
-                value={form.section}
-                onChange={(e) => handleSectionChange(e.target.value)}
-              >
-                <option value="">Select Section</option>
-                {tdsSections.map((s) => (
-                  <option key={s.code} value={s.code}>
-                    {s.isNewAct ? s.label : `${s.code} - ${s.label}`}
-                  </option>
-                ))}
-              </select>
-            </div>
+            {isNewActFY ? (
+              <>
+                <div className="tds-field">
+                  <label>Section <span>*</span></label>
+                  <TdsWrapSelect
+                    value={form.section}
+                    onChange={handleSectionChange}
+                    options={visibleTdsSections}
+                    getLabel={(s) => s.sectionText}
+                    placeholder="Select Section"
+                  />
+                </div>
+
+                <div className="tds-field">
+                  <label>Description <span>*</span></label>
+                  <TdsWrapSelect
+                    value={form.section}
+                    onChange={handleSectionChange}
+                    options={visibleTdsSections}
+                    getLabel={(s) => s.description}
+                    placeholder="Select Description"
+                  />
+                </div>
+              </>
+            ) : (
+              <div className="tds-field">
+                <label>Section / Description <span>*</span></label>
+                <select
+                  value={form.section}
+                  onChange={(e) => handleSectionChange(e.target.value)}
+                >
+                  <option value="">Select Section</option>
+                  {tdsSections.map((s) => (
+                    <option key={s.code} value={s.code}>
+                      {`${s.code} - ${s.label}`}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
 
             <div className="tds-field">
               <label>Amount Paid / Credited <span>*</span></label>
@@ -1330,7 +1638,27 @@ return (
                 value={form.thresholdInput}
                 onChange={(e) => update("thresholdInput", e.target.value)}
               />
+              {isNewActFY && selectedSection?.thresholdNote && (
+                <p className="tds-threshold-note">
+                  {selectedSection.thresholdNote}
+                </p>
+              )}
             </div>
+
+            {isNewActFY && selectedSection?.manualRateRequired && (
+              <div className="tds-field">
+                <label>
+                  Applicable Rate (%) <span>*</span>
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  placeholder="Enter applicable rate"
+                  value={form.manualRate}
+                  onChange={(e) => update("manualRate", e.target.value)}
+                />
+              </div>
+            )}
 
             <div className="tds-field">
               <label>ITR Filing Status</label>
@@ -1391,7 +1719,7 @@ return (
           <div className="tds-result-list">
             <div className="tds-result-item">
               <span>Applicable Rate</span>
-              <strong>{displayRate()}%</strong>
+              <strong>{formatRate(displayRate())}</strong>
             </div>
 
             <div className="tds-result-item">
@@ -1404,7 +1732,7 @@ return (
               <strong>₹ {form.amount || 0}</strong>
             </div>
 
-            <div className="tds-result-item">
+            <div className="tds-result-item tds-result-item-wrap">
               <span>Selected Section</span>
               <strong>{selectedSection?.sectionText || form.section || "-"}</strong>
             </div>
@@ -1584,6 +1912,91 @@ return (
         grid-column: span 2;
       }
 
+      .tds-threshold-note {
+        margin: 6px 2px 0;
+        color: #93c5fd;
+        font-size: 12px;
+        line-height: 1.4;
+      }
+
+      .tds-wrap-select {
+        position: relative;
+      }
+
+      .tds-wrap-select-trigger {
+        width: 100%;
+        height: 46px;
+        border-radius: 14px;
+        border: 1px solid rgba(148, 163, 184, 0.22);
+        background: rgba(2, 6, 23, 0.48);
+        color: #ffffff;
+        padding: 0 14px;
+        font-size: 14px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        cursor: pointer;
+        text-align: left;
+        transition: all 0.2s ease;
+      }
+
+      .tds-wrap-select-trigger span:first-child {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        flex: 1;
+      }
+
+      .tds-wrap-select-trigger:hover,
+      .tds-wrap-select-trigger.is-open {
+        border-color: #60a5fa;
+        box-shadow: 0 0 0 4px rgba(96, 165, 250, 0.14);
+        background: rgba(15, 23, 42, 0.95);
+      }
+
+      .tds-wrap-select-arrow {
+        flex-shrink: 0;
+        color: #60a5fa;
+        font-size: 11px;
+      }
+
+      .tds-wrap-select-menu {
+        position: absolute;
+        top: calc(100% + 6px);
+        left: 0;
+        width: 100%;
+        max-height: 320px;
+        overflow-y: auto;
+        background: #0f172a;
+        border: 1px solid rgba(148, 163, 184, 0.28);
+        border-radius: 14px;
+        box-shadow: 0 22px 60px rgba(0, 0, 0, 0.45);
+        z-index: 60;
+        padding: 6px;
+      }
+
+      .tds-wrap-select-option {
+        padding: 10px 12px;
+        border-radius: 10px;
+        font-size: 13px;
+        line-height: 1.45;
+        color: #e5e7eb;
+        white-space: normal;
+        word-break: break-word;
+        cursor: pointer;
+      }
+
+      .tds-wrap-select-option:hover {
+        background: rgba(96, 165, 250, 0.14);
+      }
+
+      .tds-wrap-select-option.is-selected {
+        background: rgba(37, 99, 235, 0.32);
+        color: #ffffff;
+        font-weight: 700;
+      }
+
       .tds-check-box {
         grid-column: span 2;
         display: flex;
@@ -1716,6 +2129,20 @@ return (
       .tds-result-item.final strong {
         color: #86efac;
         font-size: 20px;
+      }
+
+      .tds-result-item-wrap {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 6px;
+      }
+
+      .tds-result-item-wrap strong {
+        max-width: 365px;
+        width: 100%;
+        text-align: left;
+        white-space: normal;
+        word-break: break-word;
       }
 
       input[type="date"]::-webkit-calendar-picker-indicator {

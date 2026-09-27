@@ -128,6 +128,99 @@ const rows = [
   { code: '1067', old: '194T', sec: '393(3) [Table: Sl. No. 7]', nature: 'Any sum in the nature of salary, remuneration, commission, bonus or interest paid to a partner of the firm or credited to his account (including capital account).', threshold: '20000', ind: '-', other: '10%' },
 ];
 
+// ==========================================================================
+// Surcharge Rates — FY 2026-27, Form 144, "Deductee Category (Non-Resident)"
+// Source: https://traces.tdscpc.gov.in/thingsToKnow/ratecharts (Surcharge Rates tab)
+// "Yes" = deductee opting out of the taxation regime u/s 202(7) (Old Tax Regime)
+// "No"  = deductee not opting out (New Tax Regime)
+// ==========================================================================
+const CAT_INDIVIDUAL_ETC =
+  '- Individual\n- Hindu Undivided Family\n- Body of Individual\n- Association of Persons (AOP) except in case of AOP consisting of only companies as its members\n- Artificial juridical person';
+
+const SLAB_GENERAL_OLD =
+  '0-₹50,00,000 = 0%\n₹50,00,001-₹1,00,00,000 = 10%\n₹1,00,00,001-₹2,00,00,000 = 15%\n₹2,00,00,001-₹5,00,00,000 = 25%\nAbove ₹5,00,00,000 = 37%';
+const SLAB_GENERAL_NEW =
+  '0-₹50,00,000 = 0%\n₹50,00,001-₹1,00,00,000 = 10%\n₹1,00,00,001-₹2,00,00,000 = 15%\nAbove ₹2,00,00,000 = 25%';
+
+const SLAB_CAPITAL_GAINS =
+  '0-₹50,00,000 = 0%\n₹50,00,001-₹1,00,00,000 = 10%\n₹1,00,00,001-₹2,00,00,000 = 15%\nAbove ₹2,00,00,000 = 15%';
+
+const SECTION_LIST_1 =
+  "392(7), 393(3) [Table: Sl. No. 1], 393(3) [Table: Sl. No. 2], 393(3) [Table: Sl. No. 3], 393(2) [Table: Sl. No. 1], 393(3) [Table: Sl. No. 6], 393(3) [Table: Sl. No. 4], 393(2) [Table: Sl. No. 5], 393(1)[Table: Sl. No. 4(iii)], 393(2)[Table: Sl.No.6 & 7], 393(1) [Table: Sl. No. 4(iv)], 393(2)[Table: Sl. No. 2,3 & 4], 393(3)[Table: Sl. No.14], 393(1) [Table: Sl. No.  4(iv)], 393(2)[Table: Sl. No. 9], 393(3) [Table: Sl. No. 5], 393(2) [Table: Sl. No. 10], 393(2) [Table: Sl. No. 11],393(2) [Table: Sl. No. 12], 393(2), 393(2)[Table: Sl. No. 13 & 14], 393(2)[Table: Sl. No. 15 & 16], (Any other nature of remittance except 'Dividend')";
+
+const SECTION_LIST_ALL_REMITTANCE =
+  "393(3) [Table: Sl. No. 1] , 393(3) [Table: Sl. No. 1], 393(3) [Table: Sl. No. 3], 393(2) [Table: Sl. No. 1], 393(3) [Table: Sl. No. 6], 393(3) [Table: Sl. No. 4], 393(2) [Table: Sl. No. 5], 393(1)[Table: Sl. No. 4(iii)], 393(2)[Table: Sl.No.6 & 7], 393(1) [Table: Sl. No.  4(iv)], 393(2)[Table: Sl. No. 2,3 & 4], 393(3) [Table: Sl. No. 5], 393(3) [Table: Sl. No. 5]F, 393(2)[Table: Sl. No. 17] (All nature of remittance), 393(2) [Table: Sl. No. 10], 393(2) [Table: Sl. No. 11],393(2) [Table: Sl. No. 12], 393(2) [Table: Sl. No. 13],393(2) [Table: Sl. No. 14], 393(2) [Table: Sl. No. 15] (All nature of remittance)";
+
+const surchargeRows = [
+  {
+    sno: '1',
+    section: SECTION_LIST_1,
+    category: CAT_INDIVIDUAL_ETC,
+    oldRegime: SLAB_GENERAL_OLD,
+    newRegime: SLAB_GENERAL_NEW,
+  },
+  {
+    sno: '1',
+    section: '393(2) [Table: Sl. No. 15] (Dividend/No Nature of Remittance present)',
+    category:
+      'Association of Persons (AOP) except in case of AOP consisting of only companies as its members, Association of Persons (AOP) consisting of only companies as its members, Artificial juridical person',
+    oldRegime: '0-₹50,00,000 = 0%\n₹50,00,001-₹1,00,00,000 = 10%\nAbove ₹1,00,00,000 = 15%',
+    newRegime: '0-₹50,00,000 = 0%\n₹50,00,001-₹1,00,00,000 = 10%\nAbove ₹1,00,00,000 = 15%',
+  },
+  {
+    sno: '1',
+    section:
+      '393(2) [Table: Sl. No. 17] with Nature of Remittance (Dividend, 196-Tax on short term capital gains in certain cases, 197-Tax on long-term capital gain, 198-Tax on Long Term Capital Gain (Equity))',
+    category: CAT_INDIVIDUAL_ETC,
+    oldRegime: SLAB_CAPITAL_GAINS,
+    newRegime: SLAB_CAPITAL_GAINS,
+  },
+  {
+    sno: '1',
+    section:
+      'Any section code (except 393(2) [Table: Sl. No. 17]) with Nature of Remittance (Dividend, 196-Tax on short term capital gains in certain cases, 197-Tax on long-term capital gain, 198-Tax on Long Term Capital Gain (Equity))',
+    category: CAT_INDIVIDUAL_ETC,
+    oldRegime: SLAB_GENERAL_OLD,
+    newRegime: SLAB_GENERAL_NEW,
+  },
+  {
+    sno: '1',
+    section:
+      '393(2) [Table: Sl. No. 17] (Except Dividend, 196-Tax on short term capital gains in certain cases, 197-Tax on long-term capital gain, 198-Tax on Long Term Capital Gain (Equity))',
+    category: CAT_INDIVIDUAL_ETC,
+    oldRegime: SLAB_GENERAL_OLD,
+    newRegime: SLAB_GENERAL_NEW,
+  },
+  {
+    sno: '2',
+    section: `${SECTION_LIST_ALL_REMITTANCE}, Any section code (except 393(2)[Table: Sl. No.17]) with nature of remittance(Dividend, 196-Tax on short term capital gains in certain cases, 197-Tax on long-term capital gain, 198-Tax on Long Term Capital Gain (Equity))`,
+    category: 'Company, other than domestic company',
+    oldRegime: '0-₹1,00,00,000 = 0%\n₹1,00,00,001-₹10,00,00,000 = 2%\nAbove ₹10,00,00,000 = 5%',
+    newRegime: '0-₹1,00,00,000 = 0%\n₹1,00,00,001-₹10,00,00,000 = 2%\nAbove ₹10,00,00,000 = 5%',
+  },
+  {
+    sno: '3',
+    section: `${SECTION_LIST_ALL_REMITTANCE}, Any section code(except 195) with nature of remittance(Dividend, 196-Tax on short term capital gains in certain cases, 197-Tax on long-term capital gain, 198-Tax on Long Term Capital Gain (Equity))`,
+    category: 'Firm',
+    oldRegime: '0-₹1,00,00,000 = 0%\nAbove ₹1,00,00,000 = 12%',
+    newRegime: '0-₹1,00,00,000 = 0%\nAbove ₹1,00,00,000 = 12%',
+  },
+  {
+    sno: '4',
+    section: SECTION_LIST_ALL_REMITTANCE,
+    category: 'Association of Persons (AOP) consisting of only companies as its members',
+    oldRegime: '0-₹1,00,00,000 = 0%\n₹1,00,00,001-₹10,00,00,000 = 10%\nAbove ₹10,00,00,000 = 15%',
+    newRegime: '0-₹1,00,00,000 = 0%\n₹1,00,00,001-₹10,00,00,000 = 10%\nAbove ₹10,00,00,000 = 15%',
+  },
+  {
+    sno: '5',
+    section: SECTION_LIST_ALL_REMITTANCE,
+    category: 'Co-operative Society',
+    oldRegime: '0-₹1,00,00,000 = 0%\n₹1,00,00,001-₹10,00,00,000 = 7%\nAbove ₹10,00,00,000 = 12%',
+    newRegime: '0-₹1,00,00,000 = 0%\n₹1,00,00,001-₹10,00,00,000 = 7%\nAbove ₹10,00,00,000 = 12%',
+  },
+].map((row, id) => ({ ...row, id }));
+
 // "50000" -> "50,000" (Indian grouping). Text values are shown as-is.
 const formatThreshold = (value) =>
   /^\d+$/.test(value) ? Number(value).toLocaleString('en-IN') : value;
@@ -148,6 +241,7 @@ const multiline = { whiteSpace: 'pre-line' };
 
 export default function TDSRateChartPage() {
   const [query, setQuery] = useState('');
+  const [view, setView] = useState('tds'); // 'tds' | 'surcharge'
   const navigate = useNavigate();
 
   // Go to the previous page; if this page was opened directly (no history), go to Home.
@@ -165,6 +259,23 @@ export default function TDSRateChartPage() {
     if (terms.length === 0) return allRows;
     return allRows.filter((row) => terms.every((term) => row.searchText.includes(term)));
   }, [query]);
+
+  const toggleButtonSx = (active) => ({
+    px: 3,
+    color: active ? '#ffffff' : '#dbeafe',
+    textTransform: 'none',
+    fontWeight: 700,
+    borderRadius: 3,
+    borderColor: galaxy.border,
+    background: active ? galaxy.headGradient : 'rgba(255, 255, 255, 0.07)',
+    backdropFilter: 'blur(6px)',
+    boxShadow: active ? '0 0 24px rgba(37, 99, 235, 0.35)' : 'none',
+    '&:hover': {
+      borderColor: '#60a5fa',
+      background: active ? galaxy.headGradient : 'rgba(96, 165, 250, 0.18)',
+      boxShadow: '0 0 18px rgba(96, 165, 250, 0.4)',
+    },
+  });
 
   return (
     <Box
@@ -203,155 +314,258 @@ export default function TDSRateChartPage() {
           ← Back
         </Button>
 
-        {/* Heading + search bar */}
-        <Box
-          sx={{
-            display: 'flex',
-            flexWrap: 'wrap',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            gap: 2,
-            mb: 3,
-          }}
-        >
-          <Box>
-            <Typography
-              variant="h4"
-              component="h1"
-              sx={{
-                fontWeight: 700,
-                background: 'linear-gradient(90deg, #bfdbfe 0%, #60a5fa 55%, #67e8f9 100%)',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent',
-                backgroundClip: 'text',
-              }}
-            >
-              TDS Rate Chart
-            </Typography>
-            <Typography variant="body2" sx={{ mt: 0.5, color: galaxy.muted }}>
-              Income-tax Act, 2025 sections (old Income-tax Act, 1961 sections shown for reference)
-            </Typography>
-          </Box>
-
-          <TextField
-            type="search"
-            size="small"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search section, nature of payment, rate..."
-            inputProps={{ 'aria-label': 'Search TDS rate chart' }}
-            sx={{
-              width: { xs: '100%', sm: 380 },
-              '& .MuiOutlinedInput-root': {
-                color: '#fff',
-                borderRadius: 3,
-                backgroundColor: 'rgba(255, 255, 255, 0.07)',
-                backdropFilter: 'blur(6px)',
-                '& fieldset': { borderColor: galaxy.border },
-                '&:hover fieldset': { borderColor: '#60a5fa' },
-                '&.Mui-focused fieldset': { borderColor: '#60a5fa', borderWidth: 1 },
-                '&.Mui-focused': { boxShadow: '0 0 0 3px rgba(96, 165, 250, 0.28), 0 0 24px rgba(96, 165, 250, 0.35)' },
-              },
-              '& input::placeholder': { color: 'rgba(226, 232, 240, 0.6)', opacity: 1 },
-              '& input[type="search"]::-webkit-search-cancel-button': { filter: 'invert(1)', cursor: 'pointer' },
-            }}
-          />
+        {/* TDS Rates / Surcharge Rates toggle */}
+        <Box sx={{ display: 'flex', gap: 1.5, mb: 3 }}>
+          <Button
+            onClick={() => setView('tds')}
+            variant={view === 'tds' ? 'contained' : 'outlined'}
+            disableElevation
+            sx={toggleButtonSx(view === 'tds')}
+          >
+            TDS Rates
+          </Button>
+          <Button
+            onClick={() => setView('surcharge')}
+            variant={view === 'surcharge' ? 'contained' : 'outlined'}
+            disableElevation
+            sx={toggleButtonSx(view === 'surcharge')}
+          >
+            Surcharge Rates
+          </Button>
         </Box>
 
-        <Typography variant="caption" sx={{ display: 'block', mb: 1, color: galaxy.muted }}>
-          Showing {filteredRows.length} of {allRows.length} rows
-        </Typography>
+        {view === 'tds' ? (
+          <>
+            {/* Heading + search bar */}
+            <Box
+              sx={{
+                display: 'flex',
+                flexWrap: 'wrap',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: 2,
+                mb: 3,
+              }}
+            >
+              <Box>
+                <Typography
+                  variant="h4"
+                  component="h1"
+                  sx={{
+                    fontWeight: 700,
+                    background: 'linear-gradient(90deg, #bfdbfe 0%, #60a5fa 55%, #67e8f9 100%)',
+                    WebkitBackgroundClip: 'text',
+                    WebkitTextFillColor: 'transparent',
+                    backgroundClip: 'text',
+                  }}
+                >
+                  TDS Rate Chart
+                </Typography>
+                <Typography variant="body2" sx={{ mt: 0.5, color: galaxy.muted }}>
+                  Income-tax Act, 2025 sections (old Income-tax Act, 1961 sections shown for reference)
+                </Typography>
+              </Box>
 
-        <TableContainer
-          component={Paper}
-          sx={{
-            backgroundColor: 'rgba(15, 23, 42, 0.75)',
-            backdropFilter: 'blur(10px)',
-            border: `1px solid ${galaxy.border}`,
-            borderRadius: 3,
-            boxShadow: '0 0 40px rgba(37, 99, 235, 0.25)',
-          }}
-        >
-          <Table sx={{ minWidth: 100}} aria-label="TDS rate chart">
-            <TableHead sx={{ background: galaxy.headGradient }}>
-              <TableRow>
-                <StyledTableCell align="center">Section Code</StyledTableCell>
-                <StyledTableCell align="center">
-                  Old Section
-                  <br />
-                  (Income-tax Act, 1961)
-                </StyledTableCell>
-                <StyledTableCell align="center">
-                  New Section
-                  <br />
-                  (Income-tax Act, 2025)
-                </StyledTableCell>
-                <StyledTableCell>Nature of Payment Made To Residents (Section - Description)</StyledTableCell>
-                <StyledTableCell align="center">Threshold (₹)</StyledTableCell>
-                <StyledTableCell align="center">Individual / HUF</StyledTableCell>
-                <StyledTableCell align="center">Other than Individual / HUF</StyledTableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {filteredRows.length === 0 ? (
-                <StyledTableRow>
-                  <StyledTableCell colSpan={7} align="center" sx={{ py: 5, color: galaxy.muted }}>
-                    No results found for "{query}". Try a section number (e.g. 194C) or a keyword (e.g. rent).
-                  </StyledTableCell>
-                </StyledTableRow>
-              ) : (
-                filteredRows.map((row) => (
-                  <StyledTableRow key={row.id}>
-                    <StyledTableCell component="th" scope="row" align="center" sx={{ color: '#ffffff', fontWeight: 700 }}>
-                      {row.code}
-                    </StyledTableCell>
-                    <StyledTableCell align="center" sx={{ color: galaxy.oldSection, fontWeight: 600 }}>
-                      {row.old}
-                    </StyledTableCell>
-                    <StyledTableCell align="center" sx={{ color: galaxy.newSection }}>
-                      {row.sec}
-                    </StyledTableCell>
-                    <StyledTableCell sx={multiline}>{row.nature}</StyledTableCell>
-                    <StyledTableCell align="center" sx={multiline}>
-                      {formatThreshold(row.threshold)}
-                    </StyledTableCell>
-                    <StyledTableCell align="center" sx={{ ...multiline, color: galaxy.rate, fontWeight: 600 }}>
-                      {row.ind}
-                    </StyledTableCell>
-                    <StyledTableCell align="center" sx={{ ...multiline, color: galaxy.rate, fontWeight: 600 }}>
-                      {row.other}
-                    </StyledTableCell>
-                  </StyledTableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </TableContainer>
+              <TextField
+                type="search"
+                size="small"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Search section, nature of payment, rate..."
+                inputProps={{ 'aria-label': 'Search TDS rate chart' }}
+                sx={{
+                  width: { xs: '100%', sm: 380 },
+                  '& .MuiOutlinedInput-root': {
+                    color: '#fff',
+                    borderRadius: 3,
+                    backgroundColor: 'rgba(255, 255, 255, 0.07)',
+                    backdropFilter: 'blur(6px)',
+                    '& fieldset': { borderColor: galaxy.border },
+                    '&:hover fieldset': { borderColor: '#60a5fa' },
+                    '&.Mui-focused fieldset': { borderColor: '#60a5fa', borderWidth: 1 },
+                    '&.Mui-focused': { boxShadow: '0 0 0 3px rgba(96, 165, 250, 0.28), 0 0 24px rgba(96, 165, 250, 0.35)' },
+                  },
+                  '& input::placeholder': { color: 'rgba(226, 232, 240, 0.6)', opacity: 1 },
+                  '& input[type="search"]::-webkit-search-cancel-button': { filter: 'invert(1)', cursor: 'pointer' },
+                }}
+              />
+            </Box>
 
-        <Alert
-          severity="info"
-          sx={{
-            mt: 3,
-            color: '#e0f2fe',
-            backgroundColor: 'rgba(56, 189, 248, 0.10)',
-            border: '1px solid rgba(56, 189, 248, 0.35)',
-            backdropFilter: 'blur(6px)',
-            '& .MuiAlert-icon': { color: '#38bdf8' },
-          }}
-        >
-          <AlertTitle>Note :- Tax Rates where PAN is Invalid/Inoperative/Not Available.</AlertTitle>
-          Section 397 of Income-tax Act, 2025 provides that irrespective of anything contained in any other provision
-          of this Act, every person, entitled to receive any amount on which tax is deductible, shall furnish his valid
-          Permanent Account Number to the person responsible for deducting tax, in case of failing tax shall be
-          deducted at the higher of the following rates, namely:-
-          <br />
-          (i) at the rate specified in the relevant provision of this Act; or
-          <br />
-          (ii) at the rate or rates in force; or
-          <br />
-          (iii) at the rate of 5% where tax is required to be deducted under section 393(1) [Table: Sl. No. 8(ii) or
-          8(v)]; or 20% in any other case;
-        </Alert>
+            <Typography variant="caption" sx={{ display: 'block', mb: 1, color: galaxy.muted }}>
+              Showing {filteredRows.length} of {allRows.length} rows
+            </Typography>
+
+            <TableContainer
+              component={Paper}
+              sx={{
+                backgroundColor: 'rgba(15, 23, 42, 0.75)',
+                backdropFilter: 'blur(10px)',
+                border: `1px solid ${galaxy.border}`,
+                borderRadius: 3,
+                boxShadow: '0 0 40px rgba(37, 99, 235, 0.25)',
+              }}
+            >
+              <Table sx={{ minWidth: 100}} aria-label="TDS rate chart">
+                <TableHead sx={{ background: galaxy.headGradient }}>
+                  <TableRow>
+                    <StyledTableCell align="center">Section Code</StyledTableCell>
+                    <StyledTableCell align="center">
+                      Old Section
+                      <br />
+                      (Income-tax Act, 1961)
+                    </StyledTableCell>
+                    <StyledTableCell align="center">
+                      New Section
+                      <br />
+                      (Income-tax Act, 2025)
+                    </StyledTableCell>
+                    <StyledTableCell>Nature of Payment Made To Residents (Section - Description)</StyledTableCell>
+                    <StyledTableCell align="center">Threshold (₹)</StyledTableCell>
+                    <StyledTableCell align="center">Individual / HUF</StyledTableCell>
+                    <StyledTableCell align="center">Other than Individual / HUF</StyledTableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {filteredRows.length === 0 ? (
+                    <StyledTableRow>
+                      <StyledTableCell colSpan={7} align="center" sx={{ py: 5, color: galaxy.muted }}>
+                        No results found for "{query}". Try a section number (e.g. 194C) or a keyword (e.g. rent).
+                      </StyledTableCell>
+                    </StyledTableRow>
+                  ) : (
+                    filteredRows.map((row) => (
+                      <StyledTableRow key={row.id}>
+                        <StyledTableCell component="th" scope="row" align="center" sx={{ color: '#ffffff', fontWeight: 700 }}>
+                          {row.code}
+                        </StyledTableCell>
+                        <StyledTableCell align="center" sx={{ color: galaxy.oldSection, fontWeight: 600 }}>
+                          {row.old}
+                        </StyledTableCell>
+                        <StyledTableCell align="center" sx={{ color: galaxy.newSection }}>
+                          {row.sec}
+                        </StyledTableCell>
+                        <StyledTableCell sx={multiline}>{row.nature}</StyledTableCell>
+                        <StyledTableCell align="center" sx={multiline}>
+                          {formatThreshold(row.threshold)}
+                        </StyledTableCell>
+                        <StyledTableCell align="center" sx={{ ...multiline, color: galaxy.rate, fontWeight: 600 }}>
+                          {row.ind}
+                        </StyledTableCell>
+                        <StyledTableCell align="center" sx={{ ...multiline, color: galaxy.rate, fontWeight: 600 }}>
+                          {row.other}
+                        </StyledTableCell>
+                      </StyledTableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </TableContainer>
+
+            <Alert
+              severity="info"
+              sx={{
+                mt: 3,
+                color: '#e0f2fe',
+                backgroundColor: 'rgba(56, 189, 248, 0.10)',
+                border: '1px solid rgba(56, 189, 248, 0.35)',
+                backdropFilter: 'blur(6px)',
+                '& .MuiAlert-icon': { color: '#38bdf8' },
+              }}
+            >
+              <AlertTitle>Note :- Tax Rates where PAN is Invalid/Inoperative/Not Available.</AlertTitle>
+              Section 397 of Income-tax Act, 2025 provides that irrespective of anything contained in any other provision
+              of this Act, every person, entitled to receive any amount on which tax is deductible, shall furnish his valid
+              Permanent Account Number to the person responsible for deducting tax, in case of failing tax shall be
+              deducted at the higher of the following rates, namely:-
+              <br />
+              (i) at the rate specified in the relevant provision of this Act; or
+              <br />
+              (ii) at the rate or rates in force; or
+              <br />
+              (iii) at the rate of 5% where tax is required to be deducted under section 393(1) [Table: Sl. No. 8(ii) or
+              8(v)]; or 20% in any other case;
+            </Alert>
+          </>
+        ) : (
+          <>
+            {/* Heading */}
+            <Box sx={{ mb: 3 }}>
+              <Typography
+                variant="h4"
+                component="h1"
+                sx={{
+                  fontWeight: 700,
+                  background: 'linear-gradient(90deg, #bfdbfe 0%, #60a5fa 55%, #67e8f9 100%)',
+                  WebkitBackgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent',
+                  backgroundClip: 'text',
+                }}
+              >
+                Surcharge Rate Chart
+              </Typography>
+              <Typography variant="body2" sx={{ mt: 0.5, color: galaxy.muted }}>
+                FY 2026-27 — Form 144, Deductee Category (Non-Resident). "Yes" = deductee opting out of the
+                taxation regime u/s 202(7) (Old Tax Regime); "No" = deductee not opting out (New Tax Regime).
+              </Typography>
+            </Box>
+
+            <Typography variant="caption" sx={{ display: 'block', mb: 1, color: galaxy.muted }}>
+              Showing {surchargeRows.length} rows
+            </Typography>
+
+            <TableContainer
+              component={Paper}
+              sx={{
+                backgroundColor: 'rgba(15, 23, 42, 0.75)',
+                backdropFilter: 'blur(10px)',
+                border: `1px solid ${galaxy.border}`,
+                borderRadius: 3,
+                boxShadow: '0 0 40px rgba(37, 99, 235, 0.25)',
+              }}
+            >
+              <Table sx={{ minWidth: 100 }} aria-label="Surcharge rate chart">
+                <TableHead sx={{ background: galaxy.headGradient }}>
+                  <TableRow>
+                    <StyledTableCell align="center">S.No.</StyledTableCell>
+                    <StyledTableCell align="center">Form Type</StyledTableCell>
+                    <StyledTableCell>Section</StyledTableCell>
+                    <StyledTableCell>Deductee Category (Non-Resident)</StyledTableCell>
+                    <StyledTableCell align="center">
+                      Rate of Surcharge — Old Tax Regime
+                      <br />
+                      (opted out u/s 202(7): Yes)
+                    </StyledTableCell>
+                    <StyledTableCell align="center">
+                      Rate of Surcharge — New Tax Regime
+                      <br />
+                      (opted out u/s 202(7): No)
+                    </StyledTableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {surchargeRows.map((row) => (
+                    <StyledTableRow key={row.id}>
+                      <StyledTableCell component="th" scope="row" align="center" sx={{ color: '#ffffff', fontWeight: 700 }}>
+                        {row.sno}
+                      </StyledTableCell>
+                      <StyledTableCell align="center" sx={{ color: galaxy.oldSection, fontWeight: 600 }}>
+                        Form 144
+                      </StyledTableCell>
+                      <StyledTableCell sx={{ ...multiline, color: galaxy.newSection }}>{row.section}</StyledTableCell>
+                      <StyledTableCell sx={multiline}>{row.category}</StyledTableCell>
+                      <StyledTableCell align="center" sx={{ ...multiline, color: galaxy.rate, fontWeight: 600 }}>
+                        {row.oldRegime}
+                      </StyledTableCell>
+                      <StyledTableCell align="center" sx={{ ...multiline, color: galaxy.rate, fontWeight: 600 }}>
+                        {row.newRegime}
+                      </StyledTableCell>
+                    </StyledTableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          </>
+        )}
       </Box>
     </Box>
   );
