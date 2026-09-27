@@ -93,6 +93,30 @@ const rows = [
   { code: '1092', old: '206C-H', sec: '394(1) [Table: Sl. No. 9]', nature: `Use of mine or quarry ${NOT_MINING}`, threshold: '-', ind: '2%', other: '2%' },
 ];
 
+// ==========================================================================
+// Surcharge Rates — Form 144, "Collectee Category". Source: same TRACES page,
+// "Surcharge Rates" tab. Rates depend only on the Collectee Category, not on
+// the nature of collection, so they're identical across every row — the
+// section/nature list below is built straight from `rows` above (skipping
+// 1069, "Sale of tendu leaves", which TRACES' own Surcharge Rates tab omits)
+// so it can never drift out of sync with the TCS Rates tab.
+// "Yes" = deductee opting out of taxation regime u/s 202(7) (Old Tax Regime)
+// "No"  = deductee not opting out (New Tax Regime)
+// ==========================================================================
+const surchargeRows = rows
+  .filter((r) => r.code !== '1069')
+  .map((r, id) => ({ id, section: r.sec, collectionCode: '206C', nature: r.nature }));
+
+const SURCHARGE_CAT1_YES =
+  'Does not exceed ₹50 lac = 0%\nAbove ₹50 lac but does not exceed ₹1cr = 10%\nAbove ₹1cr but does not exceed ₹2cr = 15%\nAbove ₹2cr but does not exceed ₹5cr = 25%\nAbove ₹5cr = 37%';
+const SURCHARGE_CAT1_NO =
+  'Does not exceed ₹50 lac = 0%\nAbove ₹50 lac but does not exceed ₹1cr = 10%\nAbove ₹1cr but does not exceed ₹2cr = 15%\nAbove ₹2cr = 25%';
+const SURCHARGE_AOP_COMPANIES =
+  'Does not exceed ₹50 lac = 0%\nAbove ₹50 lac but does not exceed ₹1cr = 10%\nAbove ₹1cr = 15%';
+const SURCHARGE_COOP = 'Does not exceed ₹1cr = 0%\nAbove ₹1cr but does not exceed ₹10cr = 7%\nAbove ₹10cr = 12%';
+const SURCHARGE_FIRM = 'Does not exceed ₹1cr = 0%\nAbove ₹1cr = 12%';
+const SURCHARGE_COMPANY = 'Does not exceed ₹1cr = 0%\nAbove ₹1cr but does not exceed ₹10cr = 2%\nAbove ₹10cr = 5%';
+
 // "50000" -> "50,000" (Indian grouping). Text values are shown as-is.
 const formatThreshold = (value) =>
   /^\d+$/.test(value) ? Number(value).toLocaleString('en-IN') : value;
@@ -113,6 +137,7 @@ const multiline = { whiteSpace: 'pre-line' };
 
 export default function TCSRateChartPage() {
   const [query, setQuery] = useState('');
+  const [view, setView] = useState('tcs'); // 'tcs' | 'surcharge'
   const navigate = useNavigate();
 
   // Go to the previous page; if this page was opened directly (no history), go to Home.
@@ -130,6 +155,23 @@ export default function TCSRateChartPage() {
     if (terms.length === 0) return allRows;
     return allRows.filter((row) => terms.every((term) => row.searchText.includes(term)));
   }, [query]);
+
+  const toggleButtonSx = (active) => ({
+    px: 3,
+    color: active ? '#ffffff' : '#dbeafe',
+    textTransform: 'none',
+    fontWeight: 700,
+    borderRadius: 3,
+    borderColor: galaxy.border,
+    background: active ? galaxy.headGradient : 'rgba(255, 255, 255, 0.07)',
+    backdropFilter: 'blur(6px)',
+    boxShadow: active ? '0 0 24px rgba(37, 99, 235, 0.35)' : 'none',
+    '&:hover': {
+      borderColor: '#60a5fa',
+      background: active ? galaxy.headGradient : 'rgba(96, 165, 250, 0.18)',
+      boxShadow: '0 0 18px rgba(96, 165, 250, 0.4)',
+    },
+  });
 
   return (
     <Box
@@ -168,163 +210,288 @@ export default function TCSRateChartPage() {
           ← Back
         </Button>
 
-        {/* Heading + search bar */}
-        <Box
-          sx={{
-            display: 'flex',
-            flexWrap: 'wrap',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            gap: 2,
-            mb: 3,
-          }}
-        >
-          <Box>
-            <Typography
-              variant="h4"
-              component="h1"
-              sx={{
-                fontWeight: 700,
-                background: 'linear-gradient(90deg, #bfdbfe 0%, #60a5fa 55%, #67e8f9 100%)',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent',
-                backgroundClip: 'text',
-              }}
-            >
-              TCS Rate Chart
-            </Typography>
-            <Typography variant="body2" sx={{ mt: 0.5, color: galaxy.muted }}>
-              Tax Collected at Source (TCS) - F. Y. 2025-2026 as shown on TRACES (old Income-tax Act, 1961 sections shown for reference)
-            </Typography>
-          </Box>
-
-          <TextField
-            type="search"
-            size="small"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search section, nature of payment, rate..."
-            inputProps={{ 'aria-label': 'Search TCS rate chart' }}
-            sx={{
-              width: { xs: '100%', sm: 380 },
-              '& .MuiOutlinedInput-root': {
-                color: '#fff',
-                borderRadius: 3,
-                backgroundColor: 'rgba(255, 255, 255, 0.07)',
-                backdropFilter: 'blur(6px)',
-                '& fieldset': { borderColor: galaxy.border },
-                '&:hover fieldset': { borderColor: '#60a5fa' },
-                '&.Mui-focused fieldset': { borderColor: '#60a5fa', borderWidth: 1 },
-                '&.Mui-focused': { boxShadow: '0 0 0 3px rgba(96, 165, 250, 0.28), 0 0 24px rgba(96, 165, 250, 0.35)' },
-              },
-              '& input::placeholder': { color: 'rgba(226, 232, 240, 0.6)', opacity: 1 },
-              '& input[type="search"]::-webkit-search-cancel-button': { filter: 'invert(1)', cursor: 'pointer' },
-            }}
-          />
+        {/* TCS Rates / Surcharge Rates toggle */}
+        <Box sx={{ display: 'flex', gap: 1.5, mb: 3 }}>
+          <Button
+            onClick={() => setView('tcs')}
+            variant={view === 'tcs' ? 'contained' : 'outlined'}
+            disableElevation
+            sx={toggleButtonSx(view === 'tcs')}
+          >
+            TCS Rates
+          </Button>
+          <Button
+            onClick={() => setView('surcharge')}
+            variant={view === 'surcharge' ? 'contained' : 'outlined'}
+            disableElevation
+            sx={toggleButtonSx(view === 'surcharge')}
+          >
+            Surcharge Rates
+          </Button>
         </Box>
 
-        <Typography variant="caption" sx={{ display: 'block', mb: 1, color: galaxy.muted }}>
-          Showing {filteredRows.length} of {allRows.length} rows
-        </Typography>
+        {view === 'tcs' ? (
+          <>
+            {/* Heading + search bar */}
+            <Box
+              sx={{
+                display: 'flex',
+                flexWrap: 'wrap',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: 2,
+                mb: 3,
+              }}
+            >
+              <Box>
+                <Typography
+                  variant="h4"
+                  component="h1"
+                  sx={{
+                    fontWeight: 700,
+                    background: 'linear-gradient(90deg, #bfdbfe 0%, #60a5fa 55%, #67e8f9 100%)',
+                    WebkitBackgroundClip: 'text',
+                    WebkitTextFillColor: 'transparent',
+                    backgroundClip: 'text',
+                  }}
+                >
+                  TCS Rate Chart
+                </Typography>
+                <Typography variant="body2" sx={{ mt: 0.5, color: galaxy.muted }}>
+                  Tax Collected at Source (TCS) - F. Y. 2025-2026 as shown on TRACES (old Income-tax Act, 1961 sections shown for reference)
+                </Typography>
+              </Box>
 
-        <TableContainer
-          component={Paper}
-          sx={{
-            backgroundColor: 'rgba(15, 23, 42, 0.75)',
-            backdropFilter: 'blur(10px)',
-            border: `1px solid ${galaxy.border}`,
-            borderRadius: 3,
-            boxShadow: '0 0 40px rgba(37, 99, 235, 0.25)',
-            // width: `100%`
-          }}
-        >
-          <Table sx={{ minWidth: 100 }} aria-label="TCS rate chart">
-            <TableHead sx={{ background: galaxy.headGradient }}>
-              <TableRow>
-                <StyledTableCell align="center">Section Code</StyledTableCell>
-                <StyledTableCell align="center">
-                  Old Section
-                  <br />
-                  (Income-tax Act, 1961)
-                </StyledTableCell>
-                <StyledTableCell align="center">
-                  New Section
-                  <br />
-                  (Income-tax Act, 2025)
-                </StyledTableCell>
-                <StyledTableCell>Nature of Payment</StyledTableCell>
-                <StyledTableCell align="center">Threshold Amount (₹)</StyledTableCell>
-                <StyledTableCell align="center">
-                  TCS Rate (%)
-                  <br />
-                  Individual / HUF
-                </StyledTableCell>
-                <StyledTableCell align="center">
-                  TCS Rate (%)
-                  <br />
-                  Other
-                </StyledTableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {filteredRows.length === 0 ? (
-                <StyledTableRow>
-                  <StyledTableCell colSpan={7} align="center" sx={{ py: 5, color: galaxy.muted }}>
-                    No results found for "{query}". Try a section number (e.g. 394(1)) or a keyword (e.g. scrap).
-                  </StyledTableCell>
-                </StyledTableRow>
-              ) : (
-                filteredRows.map((row) => (
-                  <StyledTableRow key={row.id}>
-                    <StyledTableCell component="th" scope="row" align="center" sx={{ color: '#ffffff', fontWeight: 700 }}>
-                      {row.code}
-                    </StyledTableCell>
-                    <StyledTableCell align="center" sx={{ color: galaxy.oldSection, fontWeight: 600 }}>
-                      {row.old}
-                    </StyledTableCell>
-                    <StyledTableCell align="center" sx={{ color: galaxy.newSection }}>
-                      {row.sec}
-                    </StyledTableCell>
-                    <StyledTableCell sx={multiline}>{row.nature}</StyledTableCell>
-                    <StyledTableCell align="center" sx={multiline}>
-                      {formatThreshold(row.threshold)}
-                    </StyledTableCell>
-                    <StyledTableCell align="center" sx={{ ...multiline, color: galaxy.rate, fontWeight: 600 }}>
-                      {row.ind}
-                    </StyledTableCell>
-                    <StyledTableCell align="center" sx={{ ...multiline, color: galaxy.rate, fontWeight: 600 }}>
-                      {row.other}
-                    </StyledTableCell>
-                  </StyledTableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </TableContainer>
+              <TextField
+                type="search"
+                size="small"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Search section, nature of payment, rate..."
+                inputProps={{ 'aria-label': 'Search TCS rate chart' }}
+                sx={{
+                  width: { xs: '100%', sm: 380 },
+                  '& .MuiOutlinedInput-root': {
+                    color: '#fff',
+                    borderRadius: 3,
+                    backgroundColor: 'rgba(255, 255, 255, 0.07)',
+                    backdropFilter: 'blur(6px)',
+                    '& fieldset': { borderColor: galaxy.border },
+                    '&:hover fieldset': { borderColor: '#60a5fa' },
+                    '&.Mui-focused fieldset': { borderColor: '#60a5fa', borderWidth: 1 },
+                    '&.Mui-focused': { boxShadow: '0 0 0 3px rgba(96, 165, 250, 0.28), 0 0 24px rgba(96, 165, 250, 0.35)' },
+                  },
+                  '& input::placeholder': { color: 'rgba(226, 232, 240, 0.6)', opacity: 1 },
+                  '& input[type="search"]::-webkit-search-cancel-button': { filter: 'invert(1)', cursor: 'pointer' },
+                }}
+              />
+            </Box>
 
-        <Alert
-          severity="info"
-          sx={{
-            mt: 3,
-            color: '#e0f2fe',
-            backgroundColor: 'rgba(56, 189, 248, 0.10)',
-            border: '1px solid rgba(56, 189, 248, 0.35)',
-            backdropFilter: 'blur(6px)',
-            '& .MuiAlert-icon': { color: '#38bdf8' },
-          }}
-        >
-          <AlertTitle>Note :- Tax Rates where PAN is Invalid/Inoperative/Not Available.</AlertTitle>
-          Section 397 of Income-tax Act, 2025 provides that irrespective of anything contained in any other provision
-          of this Act, every person, entitled to paying any amount on which tax is collectible, shall furnish his valid
-          Permanent Account Number to the person responsible for collecting tax, in case of failing tax shall be
-          collected at the higher of the following rates, namely:-
-          <br />
-          (i) at twice the rate specified in the relevant provision of this Act; or
-          <br />
-          (ii) at the rate of five per cent.
-          <br />
-          Provided that the rate of tax collection at source under this section shall not exceed twenty per cent.
-        </Alert>
+            <Typography variant="caption" sx={{ display: 'block', mb: 1, color: galaxy.muted }}>
+              Showing {filteredRows.length} of {allRows.length} rows
+            </Typography>
+
+            <TableContainer
+              component={Paper}
+              sx={{
+                backgroundColor: 'rgba(15, 23, 42, 0.75)',
+                backdropFilter: 'blur(10px)',
+                border: `1px solid ${galaxy.border}`,
+                borderRadius: 3,
+                boxShadow: '0 0 40px rgba(37, 99, 235, 0.25)',
+                // width: `100%`
+              }}
+            >
+              <Table sx={{ minWidth: 100 }} aria-label="TCS rate chart">
+                <TableHead sx={{ background: galaxy.headGradient }}>
+                  <TableRow>
+                    <StyledTableCell align="center">Section Code</StyledTableCell>
+                    <StyledTableCell align="center">
+                      Old Section
+                      <br />
+                      (Income-tax Act, 1961)
+                    </StyledTableCell>
+                    <StyledTableCell align="center">
+                      New Section
+                      <br />
+                      (Income-tax Act, 2025)
+                    </StyledTableCell>
+                    <StyledTableCell>Nature of Payment</StyledTableCell>
+                    <StyledTableCell align="center">Threshold Amount (₹)</StyledTableCell>
+                    <StyledTableCell align="center">
+                      TCS Rate (%)
+                      <br />
+                      Individual / HUF
+                    </StyledTableCell>
+                    <StyledTableCell align="center">
+                      TCS Rate (%)
+                      <br />
+                      Other
+                    </StyledTableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {filteredRows.length === 0 ? (
+                    <StyledTableRow>
+                      <StyledTableCell colSpan={7} align="center" sx={{ py: 5, color: galaxy.muted }}>
+                        No results found for "{query}". Try a section number (e.g. 394(1)) or a keyword (e.g. scrap).
+                      </StyledTableCell>
+                    </StyledTableRow>
+                  ) : (
+                    filteredRows.map((row) => (
+                      <StyledTableRow key={row.id}>
+                        <StyledTableCell component="th" scope="row" align="center" sx={{ color: '#ffffff', fontWeight: 700 }}>
+                          {row.code}
+                        </StyledTableCell>
+                        <StyledTableCell align="center" sx={{ color: galaxy.oldSection, fontWeight: 600 }}>
+                          {row.old}
+                        </StyledTableCell>
+                        <StyledTableCell align="center" sx={{ color: galaxy.newSection }}>
+                          {row.sec}
+                        </StyledTableCell>
+                        <StyledTableCell sx={multiline}>{row.nature}</StyledTableCell>
+                        <StyledTableCell align="center" sx={multiline}>
+                          {formatThreshold(row.threshold)}
+                        </StyledTableCell>
+                        <StyledTableCell align="center" sx={{ ...multiline, color: galaxy.rate, fontWeight: 600 }}>
+                          {row.ind}
+                        </StyledTableCell>
+                        <StyledTableCell align="center" sx={{ ...multiline, color: galaxy.rate, fontWeight: 600 }}>
+                          {row.other}
+                        </StyledTableCell>
+                      </StyledTableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </TableContainer>
+
+            <Alert
+              severity="info"
+              sx={{
+                mt: 3,
+                color: '#e0f2fe',
+                backgroundColor: 'rgba(56, 189, 248, 0.10)',
+                border: '1px solid rgba(56, 189, 248, 0.35)',
+                backdropFilter: 'blur(6px)',
+                '& .MuiAlert-icon': { color: '#38bdf8' },
+              }}
+            >
+              <AlertTitle>Note :- Tax Rates where PAN is Invalid/Inoperative/Not Available.</AlertTitle>
+              Section 397 of Income-tax Act, 2025 provides that irrespective of anything contained in any other provision
+              of this Act, every person, entitled to paying any amount on which tax is collectible, shall furnish his valid
+              Permanent Account Number to the person responsible for collecting tax, in case of failing tax shall be
+              collected at the higher of the following rates, namely:-
+              <br />
+              (i) at twice the rate specified in the relevant provision of this Act; or
+              <br />
+              (ii) at the rate of five per cent.
+              <br />
+              Provided that the rate of tax collection at source under this section shall not exceed twenty per cent.
+            </Alert>
+          </>
+        ) : (
+          <>
+            {/* Heading */}
+            <Box sx={{ mb: 3 }}>
+              <Typography
+                variant="h4"
+                component="h1"
+                sx={{
+                  fontWeight: 700,
+                  background: 'linear-gradient(90deg, #bfdbfe 0%, #60a5fa 55%, #67e8f9 100%)',
+                  WebkitBackgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent',
+                  backgroundClip: 'text',
+                }}
+              >
+                Surcharge Rate Chart
+              </Typography>
+              <Typography variant="body2" sx={{ mt: 0.5, color: galaxy.muted }}>
+                Form 144, Collectee Category. "Yes" = deductee opting out of the taxation regime u/s 202(7)
+                (Old Tax Regime); "No" = deductee not opting out (New Tax Regime).
+              </Typography>
+            </Box>
+
+            <Typography variant="caption" sx={{ display: 'block', mb: 1, color: galaxy.muted }}>
+              Showing {surchargeRows.length} rows
+            </Typography>
+
+            <TableContainer
+              component={Paper}
+              sx={{
+                backgroundColor: 'rgba(15, 23, 42, 0.75)',
+                backdropFilter: 'blur(10px)',
+                border: `1px solid ${galaxy.border}`,
+                borderRadius: 3,
+                boxShadow: '0 0 40px rgba(37, 99, 235, 0.25)',
+              }}
+            >
+              <Table sx={{ minWidth: 100 }} aria-label="TCS surcharge rate chart">
+                <TableHead sx={{ background: galaxy.headGradient }}>
+                  <TableRow>
+                    <StyledTableCell align="center">
+                      Section
+                      <br />
+                      (Income-tax Act, 2025)
+                    </StyledTableCell>
+                    <StyledTableCell align="center">Collection Code</StyledTableCell>
+                    <StyledTableCell>Nature of Payment</StyledTableCell>
+                    <StyledTableCell align="center">
+                      Individual / HUF / Body of Individuals / Artificial Judicial Person / Association of Persons
+                      (except AOP consisting of only companies as its members)
+                      <br />
+                      Yes (Old Tax Regime)
+                    </StyledTableCell>
+                    <StyledTableCell align="center">
+                      Individual / HUF / Body of Individuals / Artificial Judicial Person / Association of Persons
+                      (except AOP consisting of only companies as its members)
+                      <br />
+                      No (New Tax Regime)
+                    </StyledTableCell>
+                    <StyledTableCell align="center">
+                      Association of Persons (AOP) consisting of only companies as its members
+                    </StyledTableCell>
+                    <StyledTableCell align="center">Co-operative Society</StyledTableCell>
+                    <StyledTableCell align="center">Firm</StyledTableCell>
+                    <StyledTableCell align="center">Company</StyledTableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {surchargeRows.map((row) => (
+                    <StyledTableRow key={row.id}>
+                      <StyledTableCell align="center" sx={{ color: galaxy.newSection }}>
+                        {row.section}
+                      </StyledTableCell>
+                      <StyledTableCell align="center" sx={{ color: galaxy.oldSection, fontWeight: 600 }}>
+                        {row.collectionCode}
+                      </StyledTableCell>
+                      <StyledTableCell sx={multiline}>{row.nature}</StyledTableCell>
+                      <StyledTableCell align="center" sx={{ ...multiline, color: galaxy.rate, fontWeight: 600 }}>
+                        {SURCHARGE_CAT1_YES}
+                      </StyledTableCell>
+                      <StyledTableCell align="center" sx={{ ...multiline, color: galaxy.rate, fontWeight: 600 }}>
+                        {SURCHARGE_CAT1_NO}
+                      </StyledTableCell>
+                      <StyledTableCell align="center" sx={{ ...multiline, color: galaxy.rate, fontWeight: 600 }}>
+                        {SURCHARGE_AOP_COMPANIES}
+                      </StyledTableCell>
+                      <StyledTableCell align="center" sx={{ ...multiline, color: galaxy.rate, fontWeight: 600 }}>
+                        {SURCHARGE_COOP}
+                      </StyledTableCell>
+                      <StyledTableCell align="center" sx={{ ...multiline, color: galaxy.rate, fontWeight: 600 }}>
+                        {SURCHARGE_FIRM}
+                      </StyledTableCell>
+                      <StyledTableCell align="center" sx={{ ...multiline, color: galaxy.rate, fontWeight: 600 }}>
+                        {SURCHARGE_COMPANY}
+                      </StyledTableCell>
+                    </StyledTableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          </>
+        )}
       </Box>
     </Box>
   );
