@@ -389,6 +389,13 @@ export default function Header() {
             </NavLink>
 
             <NavLink
+              to="/E-Tutorial"
+              className={navClass}
+            >
+              KnowledgeBase
+            </NavLink>
+
+            <NavLink
               to="/forms"
               className={navClass}
             >
