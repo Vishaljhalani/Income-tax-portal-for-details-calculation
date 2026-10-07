@@ -16,7 +16,7 @@ export default function E_Tutorial() {
       onClick: () => navigate("/business-code-list"),
     },
     {
-      title: "Forms as per Income Tax Act 2025 ",
+      title: "Forms name as per Income Tax Act 2025 ",
       description:
       "Old and new Income Tax Forms with their corresponding form names under the 1961 and 2025 Acts.",
       badge: "Reference",
@@ -35,6 +35,13 @@ export default function E_Tutorial() {
         "TCS rates, applicable sections, threshold limits, and special provisions for different types of payments and deductees.",
       badge: "Reference",
       onClick: () => navigate("/tcs-rate-chart"),
+    },
+    {
+      title: "AOP Tax Treatment – Situations",
+      description:
+        "TCS rates, applicable sections, threshold limits, and special provisions for different types of payments and deductees.",
+      badge: "Reference",
+      onClick: () => navigate("/AOP_Tax_Treatment_Situations"),
     }
    ];
 
@@ -80,7 +87,7 @@ export default function E_Tutorial() {
         }
       `}</style>
 
-      <Breadcrumb current="Tax Calculator" />
+      <Breadcrumb current="KnowledgeBase" />
 
       <section className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50 py-10">
         <div className="max-w-7xl mx-auto px-4">
@@ -97,9 +104,9 @@ export default function E_Tutorial() {
             "
           >
             <SectionHeader
-              eyebrow="Tax Tool"
-              title="Tax Calculator"
-              subtitle="Choose calculator type"
+              
+              title="Tax KnowledgeBase"
+              
             />
 
             <div className="tax-calculator-grid mt-8">

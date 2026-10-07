@@ -1,7 +1,5 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
 import { styled } from '@mui/material/styles';
 import Table from '@mui/material/Table';
 import TableBody from '@mui/material/TableBody';
@@ -269,52 +267,12 @@ export default function FormsMappingPage() {
     }
   };
 
-  // Builds an actual .pdf file client-side (via jsPDF + jspdf-autotable) and
-  // downloads it directly — no print dialog involved. Downloads whatever the
-  // search box currently shows, so a filtered PDF is possible too.
-  const handleDownloadPdf = () => {
-    try {
-      const doc = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'a4' });
-
-      doc.setFontSize(14);
-      doc.text('Forms \u2014 Income-tax Act 2025 (mapped to Income-tax Act, 1961)', 40, 32);
-
-      const tableOptions = {
-        startY: 48,
-        head: [['Form No. (ITA, 2025)', 'Form No. (ITA, 1961)', 'Form Description']],
-        body: filteredRows.map((row) => [`Form No. ${row.newForm}`, row.oldForm, row.desc]),
-        styles: { fontSize: 8, cellPadding: 4, overflow: 'linebreak', valign: 'top' },
-        headStyles: { fillColor: [37, 99, 235], textColor: 255, fontStyle: 'bold' },
-        alternateRowStyles: { fillColor: [241, 245, 249] },
-        columnStyles: {
-          0: { cellWidth: 95 },
-          1: { cellWidth: 95 },
-          2: { cellWidth: 'auto' },
-        },
-        margin: { left: 40, right: 40 },
-      };
-
-      // jspdf-autotable v4+ exports a function: autoTable(doc, options)
-      // jspdf-autotable v3 and earlier instead patches the instance:
-      // doc.autoTable(options) — support both so this works either way.
-      if (typeof autoTable === 'function') {
-        autoTable(doc, tableOptions);
-      } else if (typeof doc.autoTable === 'function') {
-        doc.autoTable(tableOptions);
-      } else {
-        throw new Error('jspdf-autotable did not load correctly.');
-      }
-
-      doc.save('income-tax-forms-ita-2025.pdf');
-    } catch (err) {
-      // Surface the failure instead of doing nothing, so it's obvious
-      // something needs fixing (usually a missing/mismatched package).
-      console.error('PDF generation failed:', err);
-      alert(
-        'Could not generate the PDF. Open the browser console (F12) for the error, and check that "jspdf" and "jspdf-autotable" are installed (npm install jspdf jspdf-autotable) and the dev server was restarted after installing.'
-      );
-    }
-  };
+  // Points at an existing PDF already sitting in /public (Vite serves
+  // everything in /public from the site's base path). Using BASE_URL instead
+  // of a hardcoded leading slash means this still resolves correctly even if
+  // vite.config sets a non-root "base". Change the filename here if the file
+  // is named differently.
+  const FORMS_PDF_PATH = `${import.meta.env.BASE_URL}income-tax-forms-ita-2025.pdf`;
 
   // Every word typed must match somewhere in the row, e.g. "26q quarterly" or "tcs".
   const filteredRows = useMemo(() => {
@@ -366,7 +324,10 @@ export default function FormsMappingPage() {
           </Button>
 
           <Button
-            onClick={handleDownloadPdf}
+            component="a"
+            href="../../../public/forms/income-tax-forms-ita-2025.pdf"
+            target="_blank"
+            rel="noopener noreferrer"
             variant="outlined"
             size="small"
             aria-label="Download PDF"
