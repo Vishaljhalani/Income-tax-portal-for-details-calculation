@@ -39,9 +39,23 @@ export default function E_Tutorial() {
     {
       title: "AOP Tax Treatment – Situations",
       description:
-        "TCS rates, applicable sections, threshold limits, and special provisions for different types of payments and deductees.",
+        "Taxability of an AOP is determined based on its status, members’ share in income, and applicable provisions of the Income-tax Act.",
       badge: "Reference",
       onClick: () => navigate("/AOP_Tax_Treatment_Situations"),
+    },
+    {
+      title: "Form 10IEA filing Notes",
+      description:
+        "Form 10-IEA is filed by eligible taxpayers to exercise or withdraw the option for taxation under the old tax regime, as applicable under the Income-tax Act.",
+      badge: "Reference",
+      onClick: () => navigate("/Form_10IEANotes"),
+    },
+    {
+      title: "Tax Calendar",
+      description:
+       "A tax calendar provides a concise overview of important tax-related due dates, filing deadlines, and compliance requirements.",
+      badge: "Reference",
+      onClick: () => navigate("/Tax_Calendar"),
     }
    ];
 

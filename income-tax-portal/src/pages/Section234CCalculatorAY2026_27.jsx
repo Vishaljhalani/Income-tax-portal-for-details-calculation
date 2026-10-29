@@ -78,6 +78,8 @@ export default function Section234CCalculatorAY2026_27() {
     mar15: { paidDate: "", paidAmount: "" },
   };
 
+  const initialMmrAmount = { jun15: "", sep15: "", dec15: "", mar15: "", mar31: "" };
+
   const [status, setStatus] = useState("individual_group");
   const [regime, setRegime] = useState("new");
   const [ageCategory, setAgeCategory] = useState("below_60");
@@ -89,7 +91,7 @@ export default function Section234CCalculatorAY2026_27() {
   const [income, setIncome] = useState(initialIncome);
   const [commonCredit, setCommonCredit] = useState("");
   const [advanceTax, setAdvanceTax] = useState(initialAdvanceTax);
-  const [mmrAmount, setMmrAmount] = useState("");
+  const [mmrAmount, setMmrAmount] = useState(initialMmrAmount);
   const [aopNewRegimeSurcharge, setAopNewRegimeSurcharge] = useState("25");
   const [manualSurcharge, setManualSurcharge] = useState(false);
   const [manualSurchargeBeforeMR, setManualSurchargeBeforeMR] = useState("");
@@ -112,6 +114,10 @@ export default function Section234CCalculatorAY2026_27() {
 
   const updateAdvanceTax = (installmentKey, field, value) => {
     setAdvanceTax((prev) => ({ ...prev, [installmentKey]: { ...prev[installmentKey], [field]: value } }));
+  };
+
+  const updateMmrAmount = (periodKey, value) => {
+    setMmrAmount((prev) => ({ ...prev, [periodKey]: value }));
   };
 
   const calculateSlabTax = (taxableIncome, slabs) => {
@@ -211,26 +217,21 @@ export default function Section234CCalculatorAY2026_27() {
     const incomeAmount = Math.max(Number(totalIncome) || 0, 0);
     if (status === "individual_group") {
 
-  // Income excluding capped income
   const enhancedSurchargeIncome =
     adjustedIncomeForEnhancedSurcharge ?? incomeAmount;
 
-  // Above 5 crore
   if (enhancedSurchargeIncome > 50000000) {
     return regime === "new" ? 25 : 37;
   }
 
-  // Above 2 crore
   if (enhancedSurchargeIncome > 20000000) {
     return 25;
   }
 
-  // Above 1 crore
   if (incomeAmount > 10000000) {
     return 15;
   }
 
-  // Above 50 lakh
   if (incomeAmount > 5000000) {
     return 10;
   }
@@ -318,32 +319,23 @@ export default function Section234CCalculatorAY2026_27() {
       .reduce((sum, key) => sum + num(income[rowKey][key]), 0);
   };
 
-  // Normal income frozen rahega
   const normalIncome = num(income.normalIncome.jun15);
-
-  // Quarter-wise cumulative income
   const dividendIncome = cumulative("dividendIncome");
-
   const stcgSlabIncome = cumulative("stcgSlabIncome");
-
   const ltcg125 = cumulative("ltcg125");
-
   const ltcg112a = cumulative("ltcg112a");
-
   const stcg111a = cumulative("stcg111a");
-
   const vdaIncome = cumulative("vdaIncome");
 
-  
-let presumptiveIncome = 0;
+  let presumptiveIncome = 0;
 
-if (periodKey === "mar15") {
-  presumptiveIncome = num( income.presumptiveIncome.mar15);
-}
+  if (periodKey === "mar15") {
+    presumptiveIncome = num(income.presumptiveIncome.mar15);
+  }
 
-if (periodKey === "mar31") {
-  presumptiveIncome = num(income.presumptiveIncome.mar15 );
-}
+  if (periodKey === "mar31") {
+    presumptiveIncome = num(income.presumptiveIncome.mar15);
+  }
 
   return {
     normalIncome,
@@ -357,13 +349,15 @@ if (periodKey === "mar31") {
   };
 };
 
-  const calculateTaxForPeriod = (periodKey) => {const data = getPeriodIncome(periodKey);const normalBaseIncome = data.normalIncome + data.presumptiveIncome;
-  const ordinaryWithoutDividend = normalBaseIncome + data.stcgSlabIncome;
-  const ordinaryWithDividend = ordinaryWithoutDividend + data.dividendIncome;
-  const normalIncomeTotal = ordinaryWithDividend;
-  const specialIncomeTotal = data.ltcg125 + data.ltcg112a + data.stcg111a + data.vdaIncome;
-  const totalIncome = normalIncomeTotal + specialIncomeTotal;
-  const no234cForSenior = status === "individual_group" && seniorNoBusiness && (ageCategory === "senior" || ageCategory === "super_senior");
+  const calculateTaxForPeriod = (periodKey) => {
+    const data = getPeriodIncome(periodKey);
+    const normalBaseIncome = data.normalIncome + data.presumptiveIncome;
+    const ordinaryWithoutDividend = normalBaseIncome + data.stcgSlabIncome;
+    const ordinaryWithDividend = ordinaryWithoutDividend + data.dividendIncome;
+    const normalIncomeTotal = ordinaryWithDividend;
+    const specialIncomeTotal = data.ltcg125 + data.ltcg112a + data.stcg111a + data.vdaIncome;
+    const totalIncome = normalIncomeTotal + specialIncomeTotal;
+    const no234cForSenior = status === "individual_group" && seniorNoBusiness && (ageCategory === "senior" || ageCategory === "super_senior");
 
     if (no234cForSenior) {
       return {
@@ -393,232 +387,103 @@ if (periodKey === "mar31") {
       };
     }
 
-const taxOnNormalIncomeOnly = calculateOrdinaryTax(
-  data.normalIncome
-);
+    const taxOnNormalIncomeOnly = calculateOrdinaryTax(data.normalIncome);
+    const taxOnNormalAndPresumptive = calculateOrdinaryTax(normalBaseIncome);
+    const taxOnNormalPresumptiveAndStcg = calculateOrdinaryTax(ordinaryWithoutDividend);
+    const taxOnOrdinaryWithDividend = calculateOrdinaryTax(ordinaryWithDividend);
+    const taxWithDividend = taxOnOrdinaryWithDividend;
 
-const taxOnNormalAndPresumptive = calculateOrdinaryTax(
-  normalBaseIncome
-);
+    const normalIncomeTax = Math.max(taxOnNormalIncomeOnly, 0);
+    const presumptiveIncomeTax = Math.max(taxOnNormalAndPresumptive - taxOnNormalIncomeOnly, 0);
+    const stcgSlabTax = Math.max(taxOnNormalPresumptiveAndStcg - taxOnNormalAndPresumptive, 0);
+    const dividendTaxOnly = Math.max(taxOnOrdinaryWithDividend - taxOnNormalPresumptiveAndStcg, 0);
+    const normalTax = Math.max(taxOnOrdinaryWithDividend, 0);
 
-const taxOnNormalPresumptiveAndStcg = calculateOrdinaryTax(
-  ordinaryWithoutDividend
-);
+    const dividendTax = Math.max(
+      normalIncomeTax +
+        presumptiveIncomeTax +
+        stcgSlabTax +
+        dividendTaxOnly,
+      0
+    );
 
-const taxOnOrdinaryWithDividend = calculateOrdinaryTax(
-  ordinaryWithDividend
-);
-const taxWithDividend = taxOnOrdinaryWithDividend;
-// Normal income ka tax
-const normalIncomeTax = Math.max(
-  taxOnNormalIncomeOnly,
-  0
-);
+    let ltcg125Taxable = data.ltcg125;
+    let ltcg112aTaxable = Math.max(data.ltcg112a - 125000, 0);
+    let stcg111aTaxable = data.stcg111a;
+    let vdaIncomeTaxable = data.vdaIncome;
 
-// Presumptive income ki wajah se additional tax
-const presumptiveIncomeTax = Math.max(
-  taxOnNormalAndPresumptive - taxOnNormalIncomeOnly,
-  0
-);
+    if (status === "individual_group") {
+      const finalData = getPeriodIncome("mar31");
 
-// STCG slab rate ki wajah se additional tax
-const stcgSlabTax = Math.max(
-  taxOnNormalPresumptiveAndStcg -
-    taxOnNormalAndPresumptive,
-  0
-);
+      const finalNormalIncomeForExemption =
+        finalData.normalIncome +
+        finalData.presumptiveIncome +
+        finalData.stcgSlabIncome +
+        finalData.dividendIncome;
 
-// Sirf dividend ki wajah se additional tax
-const dividendTaxOnly = Math.max(
-  taxOnOrdinaryWithDividend -
-    taxOnNormalPresumptiveAndStcg,
-  0
-);
+      const basicExemptionLimit = getBasicExemption();
 
-// Ordinary income ka actual total tax
-const normalTax = Math.max(
-  taxOnOrdinaryWithDividend,
-  0
-);
+      let unusedBasicExemption = 0;
 
-// UI mein "Tax on Dividend Income" ke andar
-// Normal + Presumptive + STCG Slab + Dividend tax
-// ka combined amount show hoga.
-const dividendTax = Math.max(
-  normalIncomeTax +
-    presumptiveIncomeTax +
-    stcgSlabTax +
-    dividendTaxOnly,
-  0
-);
+      if (finalNormalIncomeForExemption < basicExemptionLimit) {
+        unusedBasicExemption =
+          basicExemptionLimit - finalNormalIncomeForExemption;
+      }
+      
+      const adjust111A = Math.min(unusedBasicExemption, stcg111aTaxable);
+      stcg111aTaxable -= adjust111A;
+      unusedBasicExemption -= adjust111A;
 
-   let ltcg125Taxable = data.ltcg125;
-let ltcg112aTaxable = Math.max(data.ltcg112a - 125000, 0);
-let stcg111aTaxable = data.stcg111a;
-let vdaIncomeTaxable = data.vdaIncome;
+      const adjustLtcg125 = Math.min(unusedBasicExemption, ltcg125Taxable);
+      ltcg125Taxable -= adjustLtcg125;
+      unusedBasicExemption -= adjustLtcg125;
 
-if (status === "individual_group" ) {
-  // =========================================================
-  // BASIC EXEMPTION ADJUSTMENT ORDER
-  //
-  // 1. Normal Income + Dividend
-  // 2. STCG - Slab Rate
-  // 3. STCG u/s 111A
-  // 4. LTCG u/s 112 @ 12.5%
-  // 5. LTCG u/s 112A @ 12.5%
-  // 6. VDA u/s 115BBH
-  // =========================================================
+      const adjust112a = Math.min(unusedBasicExemption, ltcg112aTaxable);
+      ltcg112aTaxable -= adjust112a;
+      unusedBasicExemption -= adjust112a;
+    }
 
-// =========================================================
-// BASIC EXEMPTION — FINAL YEAR BASIS
-// =========================================================
-
-// Final quarter (31 March) ka normal-rate income
-// decide karega ki basic exemption available hai ya nahi.
-
-const finalData = getPeriodIncome("mar31");
-
-const finalNormalIncomeForExemption =
-  finalData.normalIncome +
-  finalData.presumptiveIncome +
-  finalData.stcgSlabIncome +
-  finalData.dividendIncome;
-
-const basicExemptionLimit = getBasicExemption();
-
-// Agar final normal income basic exemption se upar hai,
-// to kisi bhi quarter me special-rate income ko
-// basic exemption se adjust nahi kiya jayega.
-
-let unusedBasicExemption = 0;
-
-if (finalNormalIncomeForExemption < basicExemptionLimit) {
-  unusedBasicExemption =
-    basicExemptionLimit - finalNormalIncomeForExemption;
-}
-  
-  // ---------------------------------------------------------
-  // 2. STCG u/s 111A
-  // ---------------------------------------------------------
-  const adjust111A = Math.min(
-    unusedBasicExemption,
-    stcg111aTaxable
-  );
-
-  stcg111aTaxable -= adjust111A;
-  unusedBasicExemption -= adjust111A;
-
-  // ---------------------------------------------------------
-  // 3. LTCG u/s 112 @ 12.5%
-  // ---------------------------------------------------------
-  const adjustLtcg125 = Math.min(
-    unusedBasicExemption,
-    ltcg125Taxable
-  );
-
-  ltcg125Taxable -= adjustLtcg125;
-  unusedBasicExemption -= adjustLtcg125;
-
-  // ---------------------------------------------------------
-  // 4. LTCG u/s 112A @ 12.5%
-  // ---------------------------------------------------------
-  const adjust112a = Math.min(
-    unusedBasicExemption,
-    ltcg112aTaxable
-  );
-
-  ltcg112aTaxable -= adjust112a;
-  unusedBasicExemption -= adjust112a;
-
-}
     const ltcg125Tax = ltcg125Taxable * 0.125;
     const ltcg112aTax = ltcg112aTaxable * 0.125;
     const stcg111aTax = stcg111aTaxable * 0.2;
     const vdaIncomeTax = vdaIncomeTaxable * 0.30;
+    
     const totalTax =
-  normalTax +
-  ltcg125Tax +
-  ltcg112aTax +
-  stcg111aTax +
-  vdaIncomeTax;
-  // =========================================================
-// MMR — TOTAL TAX SE LESS HOGA
-// =========================================================
+      normalTax +
+      ltcg125Tax +
+      ltcg112aTax +
+      stcg111aTax +
+      vdaIncomeTax;
 
-const mmr = Math.max(num(mmrAmount), 0);
+    const mmr = Math.max(num(mmrAmount[periodKey]), 0);
 
-const taxAfterMMR = Math.max(
-  totalTax - mmr,
-  0
-);
+    const taxAfterMMR = Math.max(totalTax - mmr, 0);
+
     const specialTax =
-  stcgSlabTax +
-  dividendTaxOnly +
-  ltcg125Tax +
-  ltcg112aTax +
-  stcg111aTax +
-  vdaIncomeTax;
-  console.log("LTCG 12.5% DEBUG", {
-  periodKey,
-  ltcg125Income: data.ltcg125,
-  ltcg125Taxable,
-  ltcg125Tax,
-  specialTax,
-});
-    const adjustedIncomeForEnhancedSurcharge = totalIncome -( data.dividendIncome + data.ltcg125 + data.ltcg112a + data.stcg111a );
-   const surchargeRate = getSurchargeRate(totalIncome, adjustedIncomeForEnhancedSurcharge);
+      stcgSlabTax +
+      dividendTaxOnly +
+      ltcg125Tax +
+      ltcg112aTax +
+      stcg111aTax +
+      vdaIncomeTax;
 
-   // =========================
-// SPECIAL RATE SURCHARGE
-// =========================
+    const adjustedIncomeForEnhancedSurcharge = totalIncome - (data.dividendIncome + data.ltcg125 + data.ltcg112a + data.stcg111a);
+    const surchargeRate = getSurchargeRate(totalIncome, adjustedIncomeForEnhancedSurcharge);
 
-// Capped surcharge rate
-const cappedSurchargeRate =
-  Math.min(surchargeRate, 15);
+    const cappedSurchargeRate = Math.min(surchargeRate, 15);
+    const cappedIncomeTax =
+      dividendTaxOnly +
+      ltcg125Tax +
+      ltcg112aTax +
+      stcg111aTax;
 
-// Tax on capped income
-const cappedIncomeTax =
-  dividendTaxOnly +
-  ltcg125Tax +
-  ltcg112aTax +
-  stcg111aTax;
+    const surchargeTaxBase = Math.max(taxAfterMMR, 0);
+    const cappedIncomeTaxAfterMMR = Math.min(cappedIncomeTax, surchargeTaxBase);
+    const normalIncomeTaxForSurcharge = Math.max(surchargeTaxBase - cappedIncomeTaxAfterMMR, 0);
 
-// =========================================================
-// SURCHARGE AFTER MMR
-// =========================================================
-
-const surchargeTaxBase = Math.max(
-  taxAfterMMR,
-  0
-);
-
-// Capped special-rate tax cannot exceed tax after MMR
-const cappedIncomeTaxAfterMMR = Math.min(
-  cappedIncomeTax,
-  surchargeTaxBase
-);
-
-// Remaining tax is normal-rate tax
-const normalIncomeTaxForSurcharge =
-  Math.max(
-    surchargeTaxBase - cappedIncomeTaxAfterMMR,
-    0
-  );
-
-// Surcharge on normal-rate tax
-const normalSurcharge =
-  normalIncomeTaxForSurcharge *
-  (surchargeRate / 100);
-
-// Surcharge on capped special-rate tax
-const cappedIncomeSurcharge =
-  cappedIncomeTaxAfterMMR *
-  (cappedSurchargeRate / 100);
-
-// Total surcharge before Marginal Relief
-const rawSurcharge =
-  normalSurcharge +
-  cappedIncomeSurcharge;
+    const normalSurcharge = normalIncomeTaxForSurcharge * (surchargeRate / 100);
+    const cappedIncomeSurcharge = cappedIncomeTaxAfterMMR * (cappedSurchargeRate / 100);
+    const rawSurcharge = normalSurcharge + cappedIncomeSurcharge;
 
     const calculateThresholdTaxAndSurcharge = (threshold, previousRate) => {
       const thresholdSpecialIncome = data.dividendIncome + data.ltcg125 + data.ltcg112a + data.stcg111a;
@@ -630,100 +495,45 @@ const rawSurcharge =
       let thresholdLtcg112aTaxable = Math.max(data.ltcg112a - 125000, 0);
       let thresholdStcg111aTaxable = data.stcg111a;
 
-      if (status === "individual_group" ) {
- // =========================================================
-// BASIC EXEMPTION FOR MARGINAL RELIEF
-// FINAL YEAR BASIS
-// =========================================================
+      if (status === "individual_group") {
+        const finalDataForThreshold = getPeriodIncome("mar31");
 
-const finalDataForThreshold =
-  getPeriodIncome("mar31");
+        const finalNormalIncomeForExemption =
+          finalDataForThreshold.normalIncome +
+          finalDataForThreshold.presumptiveIncome +
+          finalDataForThreshold.stcgSlabIncome +
+          finalDataForThreshold.dividendIncome;
 
-const finalNormalIncomeForExemption =
-  finalDataForThreshold.normalIncome +
-  finalDataForThreshold.presumptiveIncome +
-  finalDataForThreshold.stcgSlabIncome +
-  finalDataForThreshold.dividendIncome;
+        const basicExemptionLimitForThreshold = getBasicExemption();
 
-const basicExemptionLimitForThreshold =
-  getBasicExemption();
+        let thresholdUnusedBasicExemption = 0;
 
-// Final annual normal income basic exemption se
-// upar hai to special-rate income ko exemption
-// nahi milega.
+        if (finalNormalIncomeForExemption < basicExemptionLimitForThreshold) {
+          thresholdUnusedBasicExemption =
+            basicExemptionLimitForThreshold -
+            finalNormalIncomeForExemption;
+        }
 
-let thresholdUnusedBasicExemption = 0;
+        const thresholdStcgSlabIncome = Math.min(
+          data.stcgSlabIncome,
+          Math.max(thresholdOrdinaryWithDividend - finalNormalIncomeForExemption, 0)
+        );
 
-if (
-  finalNormalIncomeForExemption <
-  basicExemptionLimitForThreshold
-) {
-  thresholdUnusedBasicExemption =
-    basicExemptionLimitForThreshold -
-    finalNormalIncomeForExemption;
-}
-  // =========================================================
-  // SAME BASIC EXEMPTION ORDER FOR MARGINAL RELIEF
-  //
-  // 1. Normal Income + Dividend
-  // 2. STCG - Slab Rate
-  // 3. STCG u/s 111A
-  // 4. LTCG u/s 112 @ 12.5%
-  // 5. LTCG u/s 112A @ 12.5%
-  // =========================================================
+        const thresholdAdjustStcgSlab = Math.min(thresholdUnusedBasicExemption, thresholdStcgSlabIncome);
+        thresholdUnusedBasicExemption -= thresholdAdjustStcgSlab;
 
-  // ---------------------------------------------------------
-  // 1. STCG - Slab Rate
-  // ---------------------------------------------------------
-  const thresholdStcgSlabIncome = Math.min(
-    data.stcgSlabIncome,
-    Math.max(
-      thresholdOrdinaryWithDividend -
-      finalNormalIncomeForExemption,
-               0
-    )
-  );
+        const thresholdAdjust111A = Math.min(thresholdUnusedBasicExemption, thresholdStcg111aTaxable);
+        thresholdStcg111aTaxable -= thresholdAdjust111A;
+        thresholdUnusedBasicExemption -= thresholdAdjust111A;
 
-  const thresholdAdjustStcgSlab = Math.min(
-    thresholdUnusedBasicExemption,
-    thresholdStcgSlabIncome
-  );
+        const thresholdAdjustLtcg125 = Math.min(thresholdUnusedBasicExemption, thresholdLtcg125Taxable);
+        thresholdLtcg125Taxable -= thresholdAdjustLtcg125;
+        thresholdUnusedBasicExemption -= thresholdAdjustLtcg125;
 
-  thresholdUnusedBasicExemption -= thresholdAdjustStcgSlab;
-
-  // ---------------------------------------------------------
-  // 2. STCG u/s 111A
-  // ---------------------------------------------------------
-  const thresholdAdjust111A = Math.min(
-    thresholdUnusedBasicExemption,
-    thresholdStcg111aTaxable
-  );
-
-  thresholdStcg111aTaxable -= thresholdAdjust111A;
-  thresholdUnusedBasicExemption -= thresholdAdjust111A;
-
-  // ---------------------------------------------------------
-  // 3. LTCG u/s 112 @ 12.5%
-  // ---------------------------------------------------------
-  const thresholdAdjustLtcg125 = Math.min(
-    thresholdUnusedBasicExemption,
-    thresholdLtcg125Taxable
-  );
-
-  thresholdLtcg125Taxable -= thresholdAdjustLtcg125;
-  thresholdUnusedBasicExemption -= thresholdAdjustLtcg125;
-
-  // ---------------------------------------------------------
-  // 4. LTCG u/s 112A @ 12.5%
-  // ---------------------------------------------------------
-  const thresholdAdjust112a = Math.min(
-    thresholdUnusedBasicExemption,
-    thresholdLtcg112aTaxable
-  );
-
-  thresholdLtcg112aTaxable -= thresholdAdjust112a;
-  thresholdUnusedBasicExemption -= thresholdAdjust112a;
-}
+        const thresholdAdjust112a = Math.min(thresholdUnusedBasicExemption, thresholdLtcg112aTaxable);
+        thresholdLtcg112aTaxable -= thresholdAdjust112a;
+        thresholdUnusedBasicExemption -= thresholdAdjust112a;
+      }
 
       const thresholdLtcg125Tax = thresholdLtcg125Taxable * 0.125;
       const thresholdLtcg112aTax = thresholdLtcg112aTaxable * 0.125;
@@ -736,36 +546,21 @@ if (
 
       const thresholdCappedRate = Math.min(previousRate, 15);
       const thresholdDividendTaxForSurcharge =
-  thresholdDividendIncome > 0 &&
-  thresholdOrdinaryWithDividend > 0
-    ? (
-        thresholdDividendIncome /
-        thresholdOrdinaryWithDividend
-      ) * thresholdTaxWithDividend
-    : 0;
+        thresholdDividendIncome > 0 && thresholdOrdinaryWithDividend > 0
+          ? (thresholdDividendIncome / thresholdOrdinaryWithDividend) * thresholdTaxWithDividend
+          : 0;
 
-const thresholdCappedIncomeTax =
-  thresholdDividendTaxForSurcharge +
-  thresholdLtcg125Tax +
-  thresholdLtcg112aTax +
-  thresholdStcg111aTax;
+      const thresholdCappedIncomeTax =
+        thresholdDividendTaxForSurcharge +
+        thresholdLtcg125Tax +
+        thresholdLtcg112aTax +
+        thresholdStcg111aTax;
 
-const thresholdNormalTaxForSurcharge =
-  Math.max(
-    thresholdTotalTax -
-    thresholdCappedIncomeTax,
-    0
-  );
+      const thresholdNormalTaxForSurcharge = Math.max(thresholdTotalTax - thresholdCappedIncomeTax, 0);
 
-const thresholdSurcharge =
-  (
-    thresholdNormalTaxForSurcharge *
-    (previousRate / 100)
-  ) +
-  (
-    thresholdCappedIncomeTax *
-    (thresholdCappedRate / 100)
-  );
+      const thresholdSurcharge =
+        (thresholdNormalTaxForSurcharge * (previousRate / 100)) +
+        (thresholdCappedIncomeTax * (thresholdCappedRate / 100));
 
       return {
         thresholdTotalTax,
@@ -773,35 +568,24 @@ const thresholdSurcharge =
       };
     };
 
-   const marginalReliefInfo = getSurchargeThresholdInfo(totalIncome, adjustedIncomeForEnhancedSurcharge );
+    const marginalReliefInfo = getSurchargeThresholdInfo(totalIncome, adjustedIncomeForEnhancedSurcharge);
     let marginalRelief = 0;
 
     if (marginalReliefInfo) {
       const { threshold, previousRate } = marginalReliefInfo;
-      const { thresholdTotalTax, thresholdSurcharge } = calculateThresholdTaxAndSurcharge(
-        threshold,
-        previousRate
-      );
+      const { thresholdTotalTax, thresholdSurcharge } = calculateThresholdTaxAndSurcharge(threshold, previousRate);
       const excessIncomeOverThreshold = Math.max(totalIncome - threshold, 0);
-      const maximumTaxAndSurcharge =
-        thresholdTotalTax + thresholdSurcharge + excessIncomeOverThreshold;
-     const currentTaxAndRawSurcharge = taxAfterMMR + rawSurcharge;
+      const maximumTaxAndSurcharge = thresholdTotalTax + thresholdSurcharge + excessIncomeOverThreshold;
+      const currentTaxAndRawSurcharge = taxAfterMMR + rawSurcharge;
 
-      marginalRelief = Math.max(
-        currentTaxAndRawSurcharge - maximumTaxAndSurcharge,
-        0
-      );
+      marginalRelief = Math.max(currentTaxAndRawSurcharge - maximumTaxAndSurcharge, 0);
     }
 
-    const surcharge = Math.max(
-  rawSurcharge - marginalRelief,
-  0
-);
+    const surcharge = Math.max(rawSurcharge - marginalRelief, 0);
 
-// Cess MMR ke baad bache tax + net surcharge par
-    const taxBeforeCess =taxAfterMMR + surcharge;
-    const cess =taxBeforeCess * 0.04;
-    const taxWithSurchargeAndCess =taxBeforeCess + cess;
+    const taxBeforeCess = taxAfterMMR + surcharge;
+    const cess = taxBeforeCess * 0.04;
+    const taxWithSurchargeAndCess = taxBeforeCess + cess;
     const commonCreditAmount = num(commonCredit);
     const balanceTax = Math.max(taxWithSurchargeAndCess - commonCreditAmount, 0);
 
@@ -838,88 +622,45 @@ const thresholdSurcharge =
       result[period.key] = calculateTaxForPeriod(period.key);
     });
     return result;
-  }, [income, commonCredit, mmrAmount, manufacturingBusinessIncome, status, regime, ageCategory, seniorNoBusiness, domesticCompanyOption, foreignCompanyOption, cooperativeOption, aopNewRegimeSurcharge, manualSurcharge,  manualSurchargeBeforeMR, manualMarginalRelief, manualNetSurcharge]);
+  }, [income, commonCredit, mmrAmount, manufacturingBusinessIncome, status, regime, ageCategory, seniorNoBusiness, domesticCompanyOption, foreignCompanyOption, cooperativeOption, aopNewRegimeSurcharge, manualSurcharge, manualSurchargeBeforeMR, manualMarginalRelief, manualNetSurcharge]);
 
   const installmentCalculation = useMemo(() => {
-  let cumulativeAdvanceTaxPaid = 0;
+    let cumulativeAdvanceTaxPaid = 0;
 
-  return installments.map((item) => {
-    const taxData =
-      item.key === "mar15"
-        ? periodCalculation.mar31 || {}
-        : periodCalculation[item.key] || {};
+    return installments.map((item) => {
+      const taxData =
+        item.key === "mar15"
+          ? periodCalculation.mar31 || {}
+          : periodCalculation[item.key] || {};
 
-    const balanceTax =
-      taxData.balanceTax || 0;
+      const balanceTax = taxData.balanceTax || 0;
+      const currentAdvanceTaxPaid = num(advanceTax[item.key]?.paidAmount);
+      cumulativeAdvanceTaxPaid += currentAdvanceTaxPaid;
 
-    // Current installment ka actual payment
-    const currentAdvanceTaxPaid =
-      num(advanceTax[item.key]?.paidAmount);
+      const dueInstallmentAmount = balanceTax * (item.duePercent / 100);
+      const minimumAmountToAvoid234C = balanceTax * (item.minimumPercent / 100);
 
-    // Previous installments + current installment
-    cumulativeAdvanceTaxPaid +=
-      currentAdvanceTaxPaid;
+      const shortfall =
+        cumulativeAdvanceTaxPaid >= minimumAmountToAvoid234C
+          ? 0
+          : Math.max(dueInstallmentAmount - cumulativeAdvanceTaxPaid, 0);
 
-    // Cumulative advance tax requirement
-    const dueInstallmentAmount =
-      balanceTax *
-      (item.duePercent / 100);
+      const interestPayableOn = roundDownTo100(shortfall);
+      const interest = interestPayableOn * 0.01 * item.months;
 
-    // Minimum cumulative payment required
-    // to avoid interest u/s 234C
-    const minimumAmountToAvoid234C =
-      balanceTax *
-      (item.minimumPercent / 100);
-
-    // 234C tab lagega jab cumulative advance tax
-    // minimum required amount se kam ho.
-    //
-    // Interest payable amount:
-    // Cumulative Due Amount - Cumulative Advance Tax Paid
-    const shortfall =
-      cumulativeAdvanceTaxPaid >=
-      minimumAmountToAvoid234C
-        ? 0
-        : Math.max(
-            dueInstallmentAmount -
-            cumulativeAdvanceTaxPaid,
-            0
-          );
-
-    // Interest ke liye ₹100 ke nearest lower multiple
-    const interestPayableOn =
-      roundDownTo100(shortfall);
-
-    const interest =
-      interestPayableOn *
-      0.01 *
-      item.months;
-
-    return {
-      ...item,
-
-      balanceTax,
-
-      paidDate:
-        advanceTax[item.key]?.paidDate || "",
-
-      // Current installment ka payment
-      currentAdvanceTaxPaid,
-
-      // Cumulative / Gross advance tax paid
-      paidGrossAmount:
-        cumulativeAdvanceTaxPaid,
-
-      dueInstallmentAmount,
-
-      minimumAmountToAvoid234C,
-
-      interestPayableOn,
-
-      interest,
-    };
-  });
-}, [periodCalculation, advanceTax]);
+      return {
+        ...item,
+        balanceTax,
+        paidDate: advanceTax[item.key]?.paidDate || "",
+        currentAdvanceTaxPaid,
+        paidGrossAmount: cumulativeAdvanceTaxPaid,
+        dueInstallmentAmount,
+        minimumAmountToAvoid234C,
+        interestPayableOn,
+        interest,
+      };
+    });
+  }, [periodCalculation, advanceTax]);
 
   const finalTax = periodCalculation.mar31 || {};
   const total234CInterest = installmentCalculation.reduce((sum, item) => sum + item.interest, 0);
@@ -934,7 +675,7 @@ const thresholdSurcharge =
     setCooperativeOption("normal");
     setIncome(initialIncome);
     setCommonCredit("");
-    setMmrAmount("");
+    setMmrAmount(initialMmrAmount);
     setAdvanceTax(initialAdvanceTax);
   };
 
@@ -1006,24 +747,20 @@ const thresholdSurcharge =
                 )}
 
                 {status === "domestic_company" && (
-  <div className="c234-field">
-    <label>Domestic Company Option</label>
-
-    <select
-      value={domesticCompanyOption}
-      onChange={(e) =>
-        setDomesticCompanyOption(e.target.value)
-      }
-    >
-      {domesticCompanyOptions.map((item) => (
-        <option key={item.value} value={item.value}>
-          {item.label}
-        </option>
-      ))}
-    </select>
-  </div>
-)}
-
+                  <div className="c234-field">
+                    <label>Domestic Company Option</label>
+                    <select
+                      value={domesticCompanyOption}
+                      onChange={(e) => setDomesticCompanyOption(e.target.value)}
+                    >
+                      {domesticCompanyOptions.map((item) => (
+                        <option key={item.value} value={item.value}>
+                          {item.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
 
                 {status === "foreign_company" && (
                   <div className="c234-field">
@@ -1049,40 +786,37 @@ const thresholdSurcharge =
               </div>
 
               {status === "aop_company_group" && regime === "new" && (
-  <div className="c234-field">
-    <label>AOP Surcharge Rate</label>
-    <select
-      value={aopNewRegimeSurcharge}
-      onChange={(e) => setAopNewRegimeSurcharge(e.target.value)}
-    >
-      <option value="25">25%</option>
-      <option value="37">37%</option>
-    </select>
-  </div>
-)}
+                <div className="c234-field">
+                  <label>AOP Surcharge Rate</label>
+                  <select
+                    value={aopNewRegimeSurcharge}
+                    onChange={(e) => setAopNewRegimeSurcharge(e.target.value)}
+                  >
+                    <option value="25">25%</option>
+                    <option value="37">37%</option>
+                  </select>
+                </div>
+              )}
 
               {(
-  status === "domestic_company" &&
-  domesticCompanyOption === "section_115BAB"
-) ||
-(
-  status === "cooperative_society" &&
-  cooperativeOption === "section_115BAE"
-) ? (
-  <div className="c234-field">
-    <label>Manufacturing Business Income</label>
-
-    <input
-      type="text"
-      inputMode="numeric"
-      value={manufacturingBusinessIncome}
-      onChange={(e) =>
-        setManufacturingBusinessIncome(e.target.value)
-      }
-      placeholder="Enter manufacturing business income"
-    />
-  </div>
-) : null}
+                status === "domestic_company" &&
+                domesticCompanyOption === "section_115BAB"
+              ) ||
+              (
+                status === "cooperative_society" &&
+                cooperativeOption === "section_115BAE"
+              ) ? (
+                <div className="c234-field">
+                  <label>Manufacturing Business Income</label>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    value={manufacturingBusinessIncome}
+                    onChange={(e) => setManufacturingBusinessIncome(e.target.value)}
+                    placeholder="Enter manufacturing business income"
+                  />
+                </div>
+              ) : null}
 
               {status === "individual_group" && (
                 <label className="c234-check">
@@ -1114,118 +848,172 @@ const thresholdSurcharge =
 
                   <tbody>
                     <tr>
-  <td>Normal Income</td>
-  {periods.map((period) => (<td key={period.key}>{period.key === "jun15" ? (
-        <input
-          type="text" inputMode="numeric" value={income.normalIncome.jun15} onChange={(e) => updateIncome("normalIncome", "jun15", e.target.value)}
-        />) : (
-        <input
-          type="text"value={income.normalIncome.jun15}readOnly className="c234-auto-field"/>)}
-    </td>))}
-</tr>
+                      <td>Normal Income</td>
+                      {periods.map((period) => (
+                        <td key={period.key}>
+                          {period.key === "jun15" ? (
+                            <input
+                              type="text"
+                              inputMode="numeric"
+                              value={income.normalIncome.jun15}
+                              onChange={(e) => updateIncome("normalIncome", "jun15", e.target.value)}
+                            />
+                          ) : (
+                            <input
+                              type="text"
+                              value={income.normalIncome.jun15}
+                              readOnly
+                              className="c234-auto-field"
+                            />
+                          )}
+                        </td>
+                      ))}
+                    </tr>
 
-<tr>
-  <td>STCG - Taxable at Slab Rate</td>
-  {periods.map((period) => (<td key={period.key}>
-      <input
-        type="text" inputMode="numeric" value={income.stcgSlabIncome[period.key]} onChange={(e) => updateIncome("stcgSlabIncome", period.key, e.target.value)}
-      />
-    </td>))}
-</tr>
+                    <tr>
+                      <td>STCG - Taxable at Slab Rate</td>
+                      {periods.map((period) => (
+                        <td key={period.key}>
+                          <input
+                            type="text"
+                            inputMode="numeric"
+                            value={income.stcgSlabIncome[period.key]}
+                            onChange={(e) => updateIncome("stcgSlabIncome", period.key, e.target.value)}
+                          />
+                        </td>
+                      ))}
+                    </tr>
 
                     <tr>
                       <td>Dividend Income - taxable at normal slab</td>
                       {periods.map((period) => (
-                        <td key={period.key}><input type="text" inputMode="numeric" value={income.dividendIncome[period.key]} onChange={(e) => updateIncome("dividendIncome", period.key, e.target.value)} /></td>
+                        <td key={period.key}>
+                          <input
+                            type="text"
+                            inputMode="numeric"
+                            value={income.dividendIncome[period.key]}
+                            onChange={(e) => updateIncome("dividendIncome", period.key, e.target.value)}
+                          />
+                        </td>
                       ))}
                     </tr>
 
-       <tr>
-  <td>44AD / 44ADA Presumptive Income</td>
-
-  {periods.map((period) => {
-    const allowed =
-      period.key === "mar15" ||
-      period.key === "mar31";
-
-    return (
-      <td key={period.key}>
-        {period.key === "mar15" ? (
-          <input
-            type="text"
-            inputMode="numeric"
-            value={income.presumptiveIncome.mar15}
-            onChange={(e) =>
-              updateIncome(
-                "presumptiveIncome",
-                "mar15",
-                e.target.value
-              )
-            }
-          />
-        ) : period.key === "mar31" ? (
-          <input
-            type="text"
-            inputMode="numeric"
-            value={income.presumptiveIncome.mar15}
-            readOnly
-            className="c234-auto-field"
-          />
-        ) : (
-          <span className="c234-disabled-cell">
-            Only 15/3
-          </span>
-        )}
-      </td>
-    );
-  })}
-</tr>
+                    <tr>
+                      <td>44AD / 44ADA Presumptive Income</td>
+                      {periods.map((period) => {
+                        return (
+                          <td key={period.key}>
+                            {period.key === "mar15" ? (
+                              <input
+                                type="text"
+                                inputMode="numeric"
+                                value={income.presumptiveIncome.mar15}
+                                onChange={(e) =>
+                                  updateIncome(
+                                    "presumptiveIncome",
+                                    "mar15",
+                                    e.target.value
+                                  )
+                                }
+                              />
+                            ) : period.key === "mar31" ? (
+                              <input
+                                type="text"
+                                inputMode="numeric"
+                                value={income.presumptiveIncome.mar15}
+                                readOnly
+                                className="c234-auto-field"
+                              />
+                            ) : (
+                              <span className="c234-disabled-cell">
+                                Only 15/3
+                              </span>
+                            )}
+                          </td>
+                        );
+                      })}
+                    </tr>
 
                     <tr className="c234-total-row">
                       <td>Total Normal Income</td>
                       {periods.map((period) => (
-                        <td key={period.key}><span className="c234-total-display">₹ {formatCurrency(periodCalculation[period.key].normalIncomeTotal)}</span></td>
+                        <td key={period.key}>
+                          <span className="c234-total-display">₹ {formatCurrency(periodCalculation[period.key].normalIncomeTotal)}</span>
+                        </td>
                       ))}
                     </tr>
 
                     <tr>
                       <td>LTCG @12.5%</td>
                       {periods.map((period) => (
-                        <td key={period.key}><input type="text" inputMode="numeric" value={income.ltcg125[period.key]} onChange={(e) => updateIncome("ltcg125", period.key, e.target.value)} /></td>
+                        <td key={period.key}>
+                          <input
+                            type="text"
+                            inputMode="numeric"
+                            value={income.ltcg125[period.key]}
+                            onChange={(e) => updateIncome("ltcg125", period.key, e.target.value)}
+                          />
+                        </td>
                       ))}
                     </tr>
 
                     <tr>
                       <td>LTCG u/s 112A @12.5% (before ₹1,25,000 exemption)</td>
                       {periods.map((period) => (
-                        <td key={period.key}><input type="text" inputMode="numeric" value={income.ltcg112a[period.key]} onChange={(e) => updateIncome("ltcg112a", period.key, e.target.value)} /></td>
+                        <td key={period.key}>
+                          <input
+                            type="text"
+                            inputMode="numeric"
+                            value={income.ltcg112a[period.key]}
+                            onChange={(e) => updateIncome("ltcg112a", period.key, e.target.value)}
+                          />
+                        </td>
                       ))}
                     </tr>
 
                     <tr>
                       <td>STCG u/s 111A @20%</td>
                       {periods.map((period) => (
-                        <td key={period.key}><input type="text" inputMode="numeric" value={income.stcg111a[period.key]} onChange={(e) => updateIncome("stcg111a", period.key, e.target.value)} /></td>
+                        <td key={period.key}>
+                          <input
+                            type="text"
+                            inputMode="numeric"
+                            value={income.stcg111a[period.key]}
+                            onChange={(e) => updateIncome("stcg111a", period.key, e.target.value)}
+                          />
+                        </td>
                       ))}
                     </tr>
 
                     <tr>
-                        <td>VDA / Crypto Income @30%</td>
-                        {periods.map((period) => (
-                            <td key={period.key}><input type="text" inputMode="numeric"value={income.vdaIncome[period.key]}onChange={(e) =>updateIncome("vdaIncome", period.key, e.target.value) }/></td>))}
+                      <td>VDA / Crypto Income @30%</td>
+                      {periods.map((period) => (
+                        <td key={period.key}>
+                          <input
+                            type="text"
+                            inputMode="numeric"
+                            value={income.vdaIncome[period.key]}
+                            onChange={(e) => updateIncome("vdaIncome", period.key, e.target.value)}
+                          />
+                        </td>
+                      ))}
                     </tr>
 
                     <tr className="c234-total-row">
                       <td>Total Special Income</td>
                       {periods.map((period) => (
-                        <td key={period.key}><span className="c234-total-display">₹ {formatCurrency(periodCalculation[period.key].specialIncomeTotal)}</span></td>
+                        <td key={period.key}>
+                          <span className="c234-total-display">₹ {formatCurrency(periodCalculation[period.key].specialIncomeTotal)}</span>
+                        </td>
                       ))}
                     </tr>
 
                     <tr className="c234-grand-total-row">
                       <td>Total Income</td>
                       {periods.map((period) => (
-                        <td key={period.key}><span className="c234-total-display">₹ {formatCurrency(periodCalculation[period.key].totalIncome)}</span></td>
+                        <td key={period.key}>
+                          <span className="c234-total-display">₹ {formatCurrency(periodCalculation[period.key].totalIncome)}</span>
+                        </td>
                       ))}
                     </tr>
                   </tbody>
@@ -1246,24 +1034,24 @@ const thresholdSurcharge =
                 <h2>Income Wise Advance Tax Bifurcation</h2>
                 <p>Tax, surcharge, cess aur balance tax auto calculate hoga.</p>
               </div>
-                      <div style={{ marginBottom: "12px" }}>
-  <label
-    className="c234-check"
-    style={{
-      display: "inline-flex",
-      alignItems: "center",
-      gap: "8px",
-      cursor: "pointer",
-    }}
-  >
-    <input
-      type="checkbox"
-      checked={manualSurcharge}
-      onChange={(e) => setManualSurcharge(e.target.checked)}
-    />
-    <span>Manual Surcharge Calculation</span>
-  </label>
-</div>
+              <div style={{ marginBottom: "12px" }}>
+                <label
+                  className="c234-check"
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "8px",
+                    cursor: "pointer",
+                  }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={manualSurcharge}
+                    onChange={(e) => setManualSurcharge(e.target.checked)}
+                  />
+                  <span>Manual Surcharge Calculation</span>
+                </label>
+              </div>
               <div className="c234-table-wrap">
                 <table className="c234-result-table">
                   <thead>
@@ -1273,151 +1061,126 @@ const thresholdSurcharge =
                     </tr>
                   </thead>
                   <tbody>
-                   {[
-  ["Total Income", "totalIncome"],
-  ["Tax on normal income", "dividendTax"],
-  ["Tax on STCG - Slab Rate", "stcgSlabTax"],
-  ["Tax on LTCG @12.5%", "ltcg125Tax"],
-  ["Tax on 112A @12.5%", "ltcg112aTax"],
-  ["Tax on 111A @20%", "stcg111aTax"],
-  ["Tax on VDA / Crypto @30%", "vdaIncomeTax"],
-  ["Total Tax", "totalTax"],
-].map(([label, key]) => (
-  <tr key={key}>
-    <td>{label}</td>
+                    {[
+                      ["Total Income", "totalIncome"],
+                      ["Tax on normal income", "dividendTax"],
+                      ["Tax on STCG - Slab Rate", "stcgSlabTax"],
+                      ["Tax on LTCG @12.5%", "ltcg125Tax"],
+                      ["Tax on 112A @12.5%", "ltcg112aTax"],
+                      ["Tax on 111A @20%", "stcg111aTax"],
+                      ["Tax on VDA / Crypto @30%", "vdaIncomeTax"],
+                      ["Total Tax", "totalTax"],
+                    ].map(([label, key]) => (
+                      <tr key={key}>
+                        <td>{label}</td>
+                        {periods.map((period) => (
+                          <td key={period.key}>
+                            ₹ {formatCurrency(periodCalculation[period.key][key])}
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
 
-    {periods.map((period) => (
-      <td key={period.key}>
-        ₹ {formatCurrency(periodCalculation[period.key][key])}
-      </td>
-    ))}
-  </tr>
-))}
+                    {/* MMR ROW — ENABLED FOR ALL QUARTERS */}
+                    <tr>
+                      <td>MMR</td>
+                      {periods.map((period) => (
+                        <td key={period.key}>
+                          <input
+                            type="text"
+                            inputMode="numeric"
+                            value={mmrAmount[period.key]}
+                            onChange={(e) => updateMmrAmount(period.key, e.target.value)}
+                            placeholder="Enter MMR"
+                          />
+                        </td>
+                      ))}
+                    </tr>
 
-{/* MMR ROW */}
-<tr>
-  <td>MMR</td>
+                    <tr>
+                      <td>Surcharge before Marginal Relief</td>
+                      {periods.map((period) => (
+                        <td key={period.key}>
+                          {manualSurcharge ? (
+                            <input
+                              type="text"
+                              inputMode="numeric"
+                              value={manualSurchargeBeforeMR}
+                              onChange={(e) => setManualSurchargeBeforeMR(e.target.value)}
+                              placeholder="Enter amount"
+                            />
+                          ) : (
+                            <>₹ {formatCurrency(periodCalculation[period.key].rawSurcharge)}</>
+                          )}
+                        </td>
+                      ))}
+                    </tr>
 
-  {periods.map((period, index) => (
-    <td key={period.key}>
-      <input
-        type="text"
-        inputMode="numeric"
-        value={mmrAmount}
-        onChange={(e) => {
-          if (index === 0) {
-            setMmrAmount(e.target.value);
-          }
-        }}
-        readOnly={index !== 0}
-        placeholder={index === 0 ? "Enter MMR" : ""}
-        className={index !== 0 ? "c234-auto-field" : ""}
-      />
-    </td>
-  ))}
-</tr>
+                    <tr>
+                      <td>Less: Marginal Relief</td>
+                      {periods.map((period) => (
+                        <td key={period.key}>
+                          {manualSurcharge ? (
+                            <input
+                              type="text"
+                              inputMode="numeric"
+                              value={manualMarginalRelief}
+                              onChange={(e) => setManualMarginalRelief(e.target.value)}
+                              placeholder="Enter amount"
+                            />
+                          ) : (
+                            <>₹ {formatCurrency(periodCalculation[period.key].marginalRelief)}</>
+                          )}
+                        </td>
+                      ))}
+                    </tr>
 
-{/* SURCHARGE / CESS / BALANCE TAX ROWS */}
+                    <tr>
+                      <td>Net Surcharge</td>
+                      {periods.map((period) => (
+                        <td key={period.key}>
+                          {manualSurcharge ? (
+                            <input
+                              type="text"
+                              inputMode="numeric"
+                              value={manualNetSurcharge}
+                              onChange={(e) => setManualNetSurcharge(e.target.value)}
+                              placeholder="Enter amount"
+                            />
+                          ) : (
+                            <>₹ {formatCurrency(periodCalculation[period.key].surcharge)}</>
+                          )}
+                        </td>
+                      ))}
+                    </tr>
 
-<tr>
-  <td>Surcharge before Marginal Relief</td>
+                    <tr>
+                      <td>Cess @4%</td>
+                      {periods.map((period) => (
+                        <td key={period.key}>
+                          ₹ {formatCurrency(periodCalculation[period.key].cess)}
+                        </td>
+                      ))}
+                    </tr>
 
-  {periods.map((period) => (
-    <td key={period.key}>
-      {manualSurcharge ? (
-        <input
-          type="text"
-          inputMode="numeric"
-          value={manualSurchargeBeforeMR}
-          onChange={(e) =>
-            setManualSurchargeBeforeMR(e.target.value)
-          }
-          placeholder="Enter amount"
-        />
-      ) : (
-        <>₹ {formatCurrency(periodCalculation[period.key].rawSurcharge)}</>
-      )}
-    </td>
-  ))}
-</tr>
+                    <tr>
+                      <td>Tax + Surcharge + Cess</td>
+                      {periods.map((period) => (
+                        <td key={period.key}>
+                          ₹ {formatCurrency(periodCalculation[period.key].taxWithSurchargeAndCess)}
+                        </td>
+                      ))}
+                    </tr>
 
-<tr>
-  <td>Less: Marginal Relief</td>
+                    <tr>
+                      <td>Less: TDS / TCS / Rebate / Relief / Credit</td>
+                      {periods.map((period) => (
+                        <td key={period.key}>
+                          ₹ {formatCurrency(periodCalculation[period.key].commonCreditAmount)}
+                        </td>
+                      ))}
+                    </tr>
 
-  {periods.map((period) => (
-    <td key={period.key}>
-      {manualSurcharge ? (
-        <input
-          type="text"
-          inputMode="numeric"
-          value={manualMarginalRelief}
-          onChange={(e) =>
-            setManualMarginalRelief(e.target.value)
-          }
-          placeholder="Enter amount"
-        />
-      ) : (
-        <>₹ {formatCurrency(periodCalculation[period.key].marginalRelief)}</>
-      )}
-    </td>
-  ))}
-</tr>
-
-<tr>
-  <td>Net Surcharge</td>
-
-  {periods.map((period) => (
-    <td key={period.key}>
-      {manualSurcharge ? (
-        <input
-          type="text"
-          inputMode="numeric"
-          value={manualNetSurcharge}
-          onChange={(e) =>
-            setManualNetSurcharge(e.target.value)
-          }
-          placeholder="Enter amount"
-        />
-      ) : (
-        <>₹ {formatCurrency(periodCalculation[period.key].surcharge)}</>
-      )}
-    </td>
-  ))}
-</tr>
-
-<tr>
-  <td>Cess @4%</td>
-
-  {periods.map((period) => (
-    <td key={period.key}>
-      ₹ {formatCurrency(periodCalculation[period.key].cess)}
-    </td>
-  ))}
-</tr>
-
-<tr>
-  <td>Tax + Surcharge + Cess</td>
-
-  {periods.map((period) => (
-    <td key={period.key}>
-      ₹ {formatCurrency(
-        periodCalculation[period.key].taxWithSurchargeAndCess
-      )}
-    </td>
-  ))}
-</tr>
-
-<tr>
-  <td>Less: TDS / TCS / Rebate / Relief / Credit</td>
-
-  {periods.map((period) => (
-    <td key={period.key}>
-      ₹ {formatCurrency(
-        periodCalculation[period.key].commonCreditAmount
-      )}
-    </td>
-  ))}
-</tr>
                     <tr className="c234-highlight-row">
                       <td>Balance Tax</td>
                       {periods.map((period) => <td key={period.key}>₹ {formatCurrency(periodCalculation[period.key].balanceTax)}</td>)}
@@ -1552,29 +1315,29 @@ const thresholdSurcharge =
         .c234-field { display: flex; flex-direction: column; gap: 8px; }
         .c234-field label { color: #cbd5e1; font-size: 13px; font-weight: 700; }
         .c234-field input,
-.c234-field select,
-.c234-input-table input,
-.c234-result-table input {
-  width: 100%;
-  height: 46px;
-  border-radius: 14px;
-  border: 1px solid rgba(148,163,184,0.22);
-  background: rgba(2,6,23,0.48);
-  color: #ffffff;
-  padding: 0 14px;
-  outline: none;
-  font-size: 14px;
-  transition: all 0.2s ease;
-}
+        .c234-field select,
+        .c234-input-table input,
+        .c234-result-table input {
+          width: 100%;
+          height: 46px;
+          border-radius: 14px;
+          border: 1px solid rgba(148,163,184,0.22);
+          background: rgba(2,6,23,0.48);
+          color: #ffffff;
+          padding: 0 14px;
+          outline: none;
+          font-size: 14px;
+          transition: all 0.2s ease;
+        }
         .c234-field input::placeholder { color: #64748b; }
         .c234-field input:focus,
-.c234-field select:focus,
-.c234-input-table input:focus,
-.c234-result-table input:focus {
-  border-color: #60a5fa;
-  box-shadow: 0 0 0 4px rgba(96,165,250,0.14);
-  background: rgba(15,23,42,0.95);
-}
+        .c234-field select:focus,
+        .c234-input-table input:focus,
+        .c234-result-table input:focus {
+          border-color: #60a5fa;
+          box-shadow: 0 0 0 4px rgba(96,165,250,0.14);
+          background: rgba(15,23,42,0.95);
+        }
         .c234-check { display: flex; align-items: flex-start; gap: 10px; margin-top: 20px; color: #cbd5e1; font-size: 14px; line-height: 1.6; cursor: pointer; }
         .c234-check input { margin-top: 4px; accent-color: #0ea5e9; }
         .c234-info-box, .c234-credit-box, .c234-formula-box { margin-top: 24px; padding: 16px; border-radius: 18px; background: rgba(37,99,235,0.08); border: 1px solid rgba(96,165,250,0.18); }
@@ -1614,13 +1377,7 @@ const thresholdSurcharge =
         .c234-reset-btn:hover { border-color: #60a5fa; color: #ffffff; background: rgba(15,23,42,0.95); }
         @media (max-width: 1100px) { .c234-page { padding: 20px; } .c234-header { flex-direction: column; align-items: flex-start; } .c234-grid { grid-template-columns: 1fr; } .c234-result-panel { position: static; } }
         @media (max-width: 680px) { .c234-form-grid { grid-template-columns: 1fr; } .c234-result-item { flex-direction: column; } .c234-result-item strong { text-align: left; } }
-        /* BACK BUTTON */
-
-        .business-code-back-wrapper {
-         
-          margin-bottom: 20px;
-        }
-
+        .business-code-back-wrapper { margin-bottom: 20px; }
         .business-code-back-btn {
           display: inline-flex;
           align-items: center;
@@ -1636,16 +1393,12 @@ const thresholdSurcharge =
           cursor: pointer;
           transition: all 0.2s ease;
         }
-
         .business-code-back-btn:hover {
           border-color: #60a5fa;
           color: #ffffff;
           background: rgba(37, 99, 235, 0.12);
         }
-
-        .business-code-back-btn span {
-          font-size: 18px;
-        }
+        .business-code-back-btn span { font-size: 18px; }
       `}</style>
     </div>
   );
