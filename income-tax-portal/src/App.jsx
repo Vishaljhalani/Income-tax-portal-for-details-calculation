@@ -12,6 +12,7 @@ import TCSRateChartPage from "./pages/KnowledgeBase/TCSRateChartPage";
 import AOP_Tax_Treatment_Situations from "./pages/KnowledgeBase/AOP_Tax_Treatment_Situations";
 import Form_10IEANotes from "./pages/KnowledgeBase/Form_10IEANotes";
 import Tax_Calendar from "./pages/KnowledgeBase/Tax_Calendar";
+import FinancialRatiosDisclosure from "./pages/KnowledgeBase/FinancialRatiosDisclosure";
 import AdvanceTaxCalculator from "./pages/AdvanceTaxCalculator";
 import HRA_Calculator from "./pages/HRA_Calculator";
 import LeaveEncashmentCalculator from "./pages/LeaveEncashmentCalculator";
@@ -63,6 +64,12 @@ export default function App() {
             path="business-code-list"
             element={<BusinessCodeListPage />}
           />
+
+           <Route
+            path="FinancialRatiosDisclosure"
+            element={<FinancialRatiosDisclosure />}
+          />
+
 
           <Route
             path="formsMapping"

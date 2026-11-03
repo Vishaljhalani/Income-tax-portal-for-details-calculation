@@ -135,9 +135,6 @@ export default function Section89ReliefCalculator() {
     return tax;
   };
 
-  // =========================================================
-  // ADVANCED SURCHARGE & MARGINAL RELIEF ENGINE INTEGRATION
-  // =========================================================
   const calculateAdvancedSurchargeAndMR = (ayYear, isNew, totalTaxableIncome, normalTax, specialTax, stcg15, stcg20, ltcg10, ltcg125, ltcg20, stcgApp) => {
     let surchargeRate = 0;
     let thresholdIncome = 0;
@@ -459,7 +456,7 @@ export default function Section89ReliefCalculator() {
     doc.rect(0, 0, 210, 28, "F");
     
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(14);
+    doc.setFontSize(13);
     doc.setTextColor(255, 255, 255);
     doc.text("SECTION 89 RELIEF & HEAD-WISE COMPUTATION REPORT", 14, 13);
     
@@ -475,10 +472,13 @@ export default function Section89ReliefCalculator() {
       return;
     }
 
-    doc.setFontSize(11);
+    const formatPdfAmt = (val) => `Rs. ${Number(Math.round(val || 0)).toLocaleString("en-IN")}`;
+
+    // SECTION 1: OVERVIEW SUMMARY TABLE
+    doc.setFontSize(10);
     doc.setFont("helvetica", "bold");
     doc.setTextColor(30, 41, 59);
-    doc.text("1. Year-Wise Arrear Tax Relief Overview (Form 10E Summary)", 14, 36);
+    doc.text("1. Year-Wise Arrear Tax Relief Overview (Form 10E Summary)", 14, 35);
 
     const summaryTableBody = [];
     activeRows.forEach((r) => {
@@ -490,82 +490,112 @@ export default function Section89ReliefCalculator() {
       summaryTableBody.push([
         r.ay,
         r.regime === "new" ? "New" : "Old",
-        formatINR(calcWith.grossTotalIncome),
-        formatINR(calcWith.totalDeduction),
-        formatINR(calcWith.totalTaxableIncome),
-        formatINR(calcWith.finalTax),
-        formatINR(calcWithout.finalTax),
-        formatINR(diff)
+        formatPdfAmt(calcWith.grossTotalIncome),
+        formatPdfAmt(calcWith.totalDeduction),
+        formatPdfAmt(calcWith.totalTaxableIncome),
+        formatPdfAmt(calcWith.finalTax),
+        formatPdfAmt(calcWithout.finalTax),
+        formatPdfAmt(diff)
       ]);
     });
 
     autoTable(doc, {
-      startY: 40,
+      startY: 38,
       head: [["AY", "Regime", "Gross Income", "Deductions", "Taxable Net", "Tax WITH", "Tax W/O", "Tax Difference"]],
       body: summaryTableBody,
       theme: "grid",
-      headStyles: { fillColor: [15, 23, 42], textColor: [255, 255, 255], fontStyle: "bold", fontSize: 8 },
-      bodyStyles: { fontSize: 8, textColor: [30, 41, 59] },
+      headStyles: { fillColor: [15, 23, 42], textColor: [255, 255, 255], fontStyle: "bold", fontSize: 7.5, halign: "center" },
+      bodyStyles: { fontSize: 7.5, textColor: [30, 41, 59] },
+      columnStyles: {
+        0: { halign: "center" },
+        1: { halign: "center" },
+        2: { halign: "right" },
+        3: { halign: "right" },
+        4: { halign: "right" },
+        5: { halign: "right" },
+        6: { halign: "right" },
+        7: { halign: "right", fontStyle: "bold" }
+      },
       alternateRowStyles: { fillColor: [248, 250, 252] },
       margin: { left: 14, right: 14 }
     });
 
-    let currentY = doc.lastAutoTable.finalY + 12;
+    let currentY = doc.lastAutoTable.finalY + 10;
 
+    // NET RELIEF BOX IN PDF
     doc.setFillColor(239, 246, 255);
     doc.setDrawColor(147, 197, 253);
-    doc.roundedRect(14, currentY, 182, 16, 3, 3, "FD");
-    doc.setFontSize(10);
+    doc.roundedRect(14, currentY, 182, 14, 3, 3, "FD");
+    doc.setFontSize(9.5);
     doc.setFont("helvetica", "bold");
     doc.setTextColor(29, 78, 216);
-    doc.text(`NET TAX RELIEF ALLOWABLE U/S 89(1): ${formatINR(section89Summary.netRelief89)}`, 18, currentY + 10);
+    doc.text(`NET TAX RELIEF ALLOWABLE U/S 89(1): ${formatPdfAmt(section89Summary.netRelief89)}`, 18, currentY + 9);
 
-    currentY += 24;
+    currentY += 20;
 
-    doc.setFontSize(11);
+    // SECTION 2: YEAR-WISE COMPARATIVE TABLE (WITH VS WITHOUT ARREAR)
+    doc.setFontSize(10);
     doc.setFont("helvetica", "bold");
     doc.setTextColor(30, 41, 59);
-    doc.text("2. Detailed Income & Tax Computation Breakdown (Year-Wise)", 14, currentY);
+    doc.text("2. Detailed Year-Wise Head Computation (WITH vs WITHOUT Arrear)", 14, currentY);
 
     currentY += 4;
 
     activeRows.forEach((r) => {
       const ayYear = parseInt(r.ay.split("-")[0]);
       const calcWith = calculateHeadwiseComputation(r, ayYear, true);
+      const calcWithout = calculateHeadwiseComputation(r, ayYear, false);
+      const taxDiff = Math.max(calcWith.finalTax - calcWithout.finalTax, 0);
 
       if (currentY > 210) {
         doc.addPage();
         currentY = 20;
       }
 
-      const detailedRows = [
-        ["Salary Income u/s 17(1) (Incl. Arrears)", formatINR(calcWith.grossSalary)],
-        ["Less: Standard Deduction u/s 16", formatINR(calcWith.stdDeduction)],
-        ["Net Salary Head Income", formatINR(calcWith.netSalaryHead)],
-        ["House Property Income u/s 24", formatINR(calcWith.hpHead)],
-        ["Other Sources Income u/s 56", formatINR(calcWith.otherHead)],
-        ["Capital Gains Summary (Special Rate + Slab CG)", formatINR(calcWith.capitalGainsHead)],
-        ["Gross Total Income (GTI)", formatINR(calcWith.grossTotalIncome)],
-        ["Less: Chapter VI-A Deductions / 80C", formatINR(calcWith.totalDeduction)],
-        ["Total Taxable Net Income", formatINR(calcWith.totalTaxableIncome)],
-        ["-- Tax Calculation Breakdown --", ""],
-        ["Tax on Normal Slab Income (Incl. Agri Integration)", formatINR(calcWith.normalTax)],
-        ["Tax on Special Rate Capital Gains (112, 112A, 111A)", formatINR(calcWith.specialTax)],
-        ["Less: Rebate u/s 87A (Incl. Marginal Relief)", formatINR(calcWith.rebate87A)],
-        ["Add: Surcharge (Rate: " + calcWith.surchargeRate + "% | Relief: " + formatINR(calcWith.surchargeMarginalRelief) + ")", formatINR(calcWith.surchargeAmount)],
-        ["Add: Health & Education Cess (" + calcWith.cessRatePercent + "%)", formatINR(calcWith.cess)],
-        ["TOTAL TAX PAYABLE (WITH ARREAR)", formatINR(calcWith.finalTax)]
+      const comparativeRows = [
+        ["1. Income from Salaries (Gross)", formatPdfAmt(calcWith.grossSalary), formatPdfAmt(calcWithout.grossSalary)],
+        ["Less: Standard Deduction u/s 16", formatPdfAmt(calcWith.stdDeduction), formatPdfAmt(calcWithout.stdDeduction)],
+        ["Net Income from Salaries", formatPdfAmt(calcWith.netSalaryHead), formatPdfAmt(calcWithout.netSalaryHead)],
+        ["2. Income from House Property", formatPdfAmt(calcWith.hpHead), formatPdfAmt(calcWithout.hpHead)],
+        ["3. Capital Gains (Special Rate + Slab CG)", formatPdfAmt(calcWith.capitalGainsHead), formatPdfAmt(calcWithout.capitalGainsHead)],
+        ["4. Income from Other Sources", formatPdfAmt(calcWith.otherHead), formatPdfAmt(calcWithout.otherHead)],
+        ["Gross Total Income (GTI)", formatPdfAmt(calcWith.grossTotalIncome), formatPdfAmt(calcWithout.grossTotalIncome)],
+        ["Less: Chapter VI-A Deductions", formatPdfAmt(calcWith.totalDeduction), formatPdfAmt(calcWithout.totalDeduction)],
+        ["Total Taxable Net Income", formatPdfAmt(calcWith.totalTaxableIncome), formatPdfAmt(calcWithout.totalTaxableIncome)],
+        ["Tax on Normal Slab Income", formatPdfAmt(calcWith.normalTax), formatPdfAmt(calcWithout.normalTax)],
+        ["Tax on Special Rate Capital Gains", formatPdfAmt(calcWith.specialTax), formatPdfAmt(calcWithout.specialTax)],
+        ["Less: Rebate u/s 87A", formatPdfAmt(calcWith.rebate87A), formatPdfAmt(calcWithout.rebate87A)],
+        ["Add: Surcharge", formatPdfAmt(calcWith.surchargeAmount), formatPdfAmt(calcWithout.surchargeAmount)],
+        ["Add: Health & Education Cess", formatPdfAmt(calcWith.cess), formatPdfAmt(calcWithout.cess)],
+        ["TOTAL TAX PAYABLE", formatPdfAmt(calcWith.finalTax), formatPdfAmt(calcWithout.finalTax)],
+        ["TAX DIFFERENCE FOR THIS YEAR", "", formatPdfAmt(taxDiff)]
       ];
 
       autoTable(doc, {
         startY: currentY,
-        head: [[`Assessment Year ${r.ay} (${r.regime === "new" ? "New Regime" : "Old Regime"}) - Computation Details`, "Amount (₹)"]],
-        body: detailedRows,
+        head: [[`AY ${r.ay} (${r.regime === "new" ? "New Regime" : "Old Regime"})`, "WITH Arrear", "WITHOUT Arrear"]],
+        body: comparativeRows,
         theme: "striped",
-        headStyles: { fillColor: [30, 41, 59], textColor: [255, 255, 255], fontStyle: "bold", fontSize: 8.5 },
-        bodyStyles: { fontSize: 8, textColor: [51, 65, 85] },
-        columnStyles: { 0: { cellWidth: 130 }, 1: { cellWidth: 52, halign: "right", fontStyle: "bold" } },
-        margin: { left: 14, right: 14 }
+        headStyles: { fillColor: [30, 41, 59], textColor: [255, 255, 255], fontStyle: "bold", fontSize: 8 },
+        bodyStyles: { fontSize: 7.5, textColor: [51, 65, 85] },
+        columnStyles: {
+          0: { cellWidth: 102 },
+          1: { cellWidth: 40, halign: "right", fontStyle: "bold" },
+          2: { cellWidth: 40, halign: "right", fontStyle: "bold" }
+        },
+        margin: { left: 14, right: 14 },
+        didParseCell: (data) => {
+          if (data.row.index === 14) {
+            data.cell.styles.fontStyle = "bold";
+            data.cell.styles.fillColor = [220, 252, 231];
+            data.cell.styles.textColor = [22, 101, 52];
+          }
+          if (data.row.index === 15) {
+            data.cell.styles.fontStyle = "bold";
+            data.cell.styles.fillColor = [219, 234, 254];
+            data.cell.styles.textColor = [30, 64, 175];
+          }
+        }
       });
 
       currentY = doc.lastAutoTable.finalY + 8;

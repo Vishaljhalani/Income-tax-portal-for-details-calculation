@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import CalculationPrintReport from "../components/CalculationPrintReport";
+
 export default function Section234CCalculatorAY2026_27() {
   const navigate = useNavigate();
   const ASSESSMENT_YEAR = "2026-27";
@@ -63,12 +64,12 @@ export default function Section234CCalculatorAY2026_27() {
   const initialIncome = {
     normalIncome: { jun15: "", sep15: "", dec15: "", mar15: "", mar31: "" },
     dividendIncome: { jun15: "", sep15: "", dec15: "", mar15: "", mar31: "" },
-    stcgSlabIncome: {jun15: "",sep15: "",dec15: "",mar15: "",mar31: "",},
+    stcgSlabIncome: { jun15: "", sep15: "", dec15: "", mar15: "", mar31: "" },
     presumptiveIncome: { jun15: "", sep15: "", dec15: "", mar15: "", mar31: "" },
     ltcg125: { jun15: "", sep15: "", dec15: "", mar15: "", mar31: "" },
     ltcg112a: { jun15: "", sep15: "", dec15: "", mar15: "", mar31: "" },
     stcg111a: { jun15: "", sep15: "", dec15: "", mar15: "", mar31: "" },
-    vdaIncome: {jun15: "", sep15: "", dec15: "", mar15: "", mar31: "",},
+    vdaIncome: { jun15: "", sep15: "", dec15: "", mar15: "", mar31: "" },
   };
 
   const initialAdvanceTax = {
@@ -85,7 +86,7 @@ export default function Section234CCalculatorAY2026_27() {
   const [ageCategory, setAgeCategory] = useState("below_60");
   const [seniorNoBusiness, setSeniorNoBusiness] = useState(false);
   const [domesticCompanyOption, setDomesticCompanyOption] = useState("turnover_400cr");
-  const [manufacturingBusinessIncome, setManufacturingBusinessIncome] =useState("");
+  const [manufacturingBusinessIncome, setManufacturingBusinessIncome] = useState("");
   const [foreignCompanyOption, setForeignCompanyOption] = useState("other_foreign_income");
   const [cooperativeOption, setCooperativeOption] = useState("normal");
   const [income, setIncome] = useState(initialIncome);
@@ -102,7 +103,7 @@ export default function Section234CCalculatorAY2026_27() {
     if (value === null || value === undefined) return 0;
     const cleaned = String(value).replace(/,/g, "").trim();
     const parsed = Number(cleaned);
-    return Number.isFinite(parsed) ? parsed : 0;
+    return Number.isFinite(parsed) ? Math.round(parsed) : 0;
   };
 
   const formatCurrency = (amount) => Number(Math.round(amount || 0)).toLocaleString("en-IN", { maximumFractionDigits: 0 });
@@ -129,7 +130,7 @@ export default function Section234CCalculatorAY2026_27() {
         tax += amountInSlab * (slab.rate / 100);
       }
     });
-    return Math.max(tax, 0);
+    return Math.round(Math.max(tax, 0));
   };
 
   const showRegime = () => status === "individual_group" || status === "aop_company_group";
@@ -190,60 +191,46 @@ export default function Section234CCalculatorAY2026_27() {
   const calculateOrdinaryTax = (ordinaryIncome) => {
     const amount = Math.max(Number(ordinaryIncome) || 0, 0);
     if (status === "individual_group") {return getIndividualSlabTax(amount);}
-    if (status === "aop_company_group") {return amount * 0.30;}
-    if (status === "firm_llp_local") return amount * 0.3;
+    if (status === "aop_company_group") {return Math.round(amount * 0.30);}
+    if (status === "firm_llp_local") return Math.round(amount * 0.3);
     if (status === "domestic_company") {
-    if (domesticCompanyOption === "section_115BAB") {
-      const manufacturingIncome = Math.min(Math.max(Number(manufacturingBusinessIncome) || 0, 0),amount  );
-      const remainingIncome = Math.max(amount - manufacturingIncome,0);
-      const manufacturingTax =manufacturingIncome * 0.15;
-      const remainingTax =remainingIncome * 0.22;
-      return manufacturingTax + remainingTax;}
-      return (amount *(selectedDomesticCompanyOption.rate / 100) );}
-    if (status === "foreign_company") return amount * (selectedForeignCompanyOption.rate / 100);
+      if (domesticCompanyOption === "section_115BAB") {
+        const manufacturingIncome = Math.min(Math.max(Number(manufacturingBusinessIncome) || 0, 0), amount);
+        const remainingIncome = Math.max(amount - manufacturingIncome, 0);
+        const manufacturingTax = manufacturingIncome * 0.15;
+        const remainingTax = remainingIncome * 0.22;
+        return Math.round(manufacturingTax + remainingTax);
+      }
+      return Math.round(amount * (selectedDomesticCompanyOption.rate / 100));
+    }
+    if (status === "foreign_company") return Math.round(amount * (selectedForeignCompanyOption.rate / 100));
     if (status === "cooperative_society") {
-    if (selectedCooperativeOption.value === "normal") {return getCooperativeNormalTax(amount); }
-    if (selectedCooperativeOption.value === "section_115BAE") {
-      const manufacturingIncome = Math.min( Math.max(Number(manufacturingBusinessIncome) || 0, 0), amount);
-      const remainingIncome = Math.max(amount - manufacturingIncome,  0 );
-      const manufacturingTax =manufacturingIncome * 0.15;
-      const remainingTax = remainingIncome * 0.22;
-      return manufacturingTax + remainingTax; }
-      return amount * (selectedCooperativeOption.rate / 100);}
-      return 0;
+      if (selectedCooperativeOption.value === "normal") {return getCooperativeNormalTax(amount); }
+      if (selectedCooperativeOption.value === "section_115BAE") {
+        const manufacturingIncome = Math.min(Math.max(Number(manufacturingBusinessIncome) || 0, 0), amount);
+        const remainingIncome = Math.max(amount - manufacturingIncome, 0);
+        const manufacturingTax = manufacturingIncome * 0.15;
+        const remainingTax = remainingIncome * 0.22;
+        return Math.round(manufacturingTax + remainingTax);
+      }
+      return Math.round(amount * (selectedCooperativeOption.rate / 100));
+    }
+    return 0;
   };
-
-  const getSurchargeRate = (totalIncome,adjustedIncomeForEnhancedSurcharge = totalIncome) => {
+  const getSurchargeRate = (totalIncome, adjustedIncomeForEnhancedSurcharge = totalIncome) => {
     const incomeAmount = Math.max(Number(totalIncome) || 0, 0);
     if (status === "individual_group") {
-
-  const enhancedSurchargeIncome =
-    adjustedIncomeForEnhancedSurcharge ?? incomeAmount;
-
-  if (enhancedSurchargeIncome > 50000000) {
-    return regime === "new" ? 25 : 37;
-  }
-
-  if (enhancedSurchargeIncome > 20000000) {
-    return 25;
-  }
-
-  if (incomeAmount > 10000000) {
-    return 15;
-  }
-
-  if (incomeAmount > 5000000) {
-    return 10;
-  }
-
-  return 0;
-}
- if (status === "aop_company_group") {
-  if (regime === "new") {
-    return Number(aopNewRegimeSurcharge) || 25;
-  }
- return 37;
-}
+      const enhancedSurchargeIncome = adjustedIncomeForEnhancedSurcharge ?? incomeAmount;
+      if (enhancedSurchargeIncome > 50000000) return regime === "new" ? 25 : 37;
+      if (enhancedSurchargeIncome > 20000000) return 25;
+      if (incomeAmount > 10000000) return 15;
+      if (incomeAmount > 5000000) return 10;
+      return 0;
+    }
+    if (status === "aop_company_group") {
+      if (regime === "new") return Number(aopNewRegimeSurcharge) || 25;
+      return 37;
+    }
     if (status === "firm_llp_local") return incomeAmount > 10000000 ? 12 : 0;
     if (status === "domestic_company") {
       if (selectedDomesticCompanyOption.fixedSurchargeRate !== null) return selectedDomesticCompanyOption.fixedSurchargeRate;
@@ -276,9 +263,7 @@ export default function Section234CCalculatorAY2026_27() {
       return null;
     }
 
-    if (status === "aop_company_group") {
-      return null;
-    }
+    if (status === "aop_company_group") return null;
 
     if (status === "firm_llp_local") {
       if (incomeAmount > 10000000) return { threshold: 10000000, previousRate: 0 };
@@ -309,45 +294,27 @@ export default function Section234CCalculatorAY2026_27() {
   };
 
   const getPeriodIncome = (periodKey) => {
-  const order = ["jun15", "sep15", "dec15", "mar15", "mar31"];
+    const order = ["jun15", "sep15", "dec15", "mar15", "mar31"];
+    const currentIndex = order.indexOf(periodKey);
+    const cumulative = (rowKey) => {
+      return order.slice(0, currentIndex + 1).reduce((sum, key) => sum + num(income[rowKey][key]), 0);
+    };
 
-  const currentIndex = order.indexOf(periodKey);
+    const normalIncome = num(income.normalIncome.jun15);
+    const dividendIncome = cumulative("dividendIncome");
+    const stcgSlabIncome = cumulative("stcgSlabIncome");
+    const ltcg125 = cumulative("ltcg125");
+    const ltcg112a = cumulative("ltcg112a");
+    const stcg111a = cumulative("stcg111a");
+    const vdaIncome = cumulative("vdaIncome");
 
-  const cumulative = (rowKey) => {
-    return order
-      .slice(0, currentIndex + 1)
-      .reduce((sum, key) => sum + num(income[rowKey][key]), 0);
+    let presumptiveIncome = 0;
+    if (periodKey === "mar15" || periodKey === "mar31") {
+      presumptiveIncome = num(income.presumptiveIncome.mar15);
+    }
+
+    return { normalIncome, dividendIncome, stcgSlabIncome, presumptiveIncome, ltcg125, ltcg112a, stcg111a, vdaIncome };
   };
-
-  const normalIncome = num(income.normalIncome.jun15);
-  const dividendIncome = cumulative("dividendIncome");
-  const stcgSlabIncome = cumulative("stcgSlabIncome");
-  const ltcg125 = cumulative("ltcg125");
-  const ltcg112a = cumulative("ltcg112a");
-  const stcg111a = cumulative("stcg111a");
-  const vdaIncome = cumulative("vdaIncome");
-
-  let presumptiveIncome = 0;
-
-  if (periodKey === "mar15") {
-    presumptiveIncome = num(income.presumptiveIncome.mar15);
-  }
-
-  if (periodKey === "mar31") {
-    presumptiveIncome = num(income.presumptiveIncome.mar15);
-  }
-
-  return {
-    normalIncome,
-    dividendIncome,
-    stcgSlabIncome,
-    presumptiveIncome,
-    ltcg125,
-    ltcg112a,
-    stcg111a,
-    vdaIncome,
-  };
-};
 
   const calculateTaxForPeriod = (periodKey) => {
     const data = getPeriodIncome(periodKey);
@@ -361,29 +328,10 @@ export default function Section234CCalculatorAY2026_27() {
 
     if (no234cForSenior) {
       return {
-        ...data,
-        ordinaryWithoutDividend,
-        ordinaryWithDividend,
-        normalIncomeTotal,
-        specialIncomeTotal,
-        totalIncome,
-        normalTax: 0,
-        stcgSlabTax: 0,
-        dividendTax: 0,
-        ltcg125Tax: 0,
-        ltcg112aTax: 0,
-        stcg111aTax: 0,
-        vdaTax: 0,
-        totalTax: 0,
-        specialTax: 0,
-        surchargeRate: 0,
-        rawSurcharge: 0,
-        marginalRelief: 0,
-        surcharge: 0,
-        cess: 0,
-        taxWithSurchargeAndCess: 0,
-        commonCreditAmount: num(commonCredit),
-        balanceTax: 0,
+        ...data, ordinaryWithoutDividend, ordinaryWithDividend, normalIncomeTotal, specialIncomeTotal, totalIncome,
+        normalTax: 0, stcgSlabTax: 0, dividendTax: 0, ltcg125Tax: 0, ltcg112aTax: 0, stcg111aTax: 0, vdaTax: 0,
+        totalTax: 0, specialTax: 0, surchargeRate: 0, rawSurcharge: 0, marginalRelief: 0, surcharge: 0, cess: 0,
+        taxWithSurchargeAndCess: 0, commonCreditAmount: num(commonCredit), balanceTax: 0,
       };
     }
 
@@ -398,14 +346,7 @@ export default function Section234CCalculatorAY2026_27() {
     const stcgSlabTax = Math.max(taxOnNormalPresumptiveAndStcg - taxOnNormalAndPresumptive, 0);
     const dividendTaxOnly = Math.max(taxOnOrdinaryWithDividend - taxOnNormalPresumptiveAndStcg, 0);
     const normalTax = Math.max(taxOnOrdinaryWithDividend, 0);
-
-    const dividendTax = Math.max(
-      normalIncomeTax +
-        presumptiveIncomeTax +
-        stcgSlabTax +
-        dividendTaxOnly,
-      0
-    );
+    const dividendTax = Math.max(normalIncomeTax + presumptiveIncomeTax + stcgSlabTax + dividendTaxOnly, 0);
 
     let ltcg125Taxable = data.ltcg125;
     let ltcg112aTaxable = Math.max(data.ltcg112a - 125000, 0);
@@ -414,22 +355,10 @@ export default function Section234CCalculatorAY2026_27() {
 
     if (status === "individual_group") {
       const finalData = getPeriodIncome("mar31");
-
-      const finalNormalIncomeForExemption =
-        finalData.normalIncome +
-        finalData.presumptiveIncome +
-        finalData.stcgSlabIncome +
-        finalData.dividendIncome;
-
+      const finalNormalIncomeForExemption = finalData.normalIncome + finalData.presumptiveIncome + finalData.stcgSlabIncome + finalData.dividendIncome;
       const basicExemptionLimit = getBasicExemption();
+      let unusedBasicExemption = finalNormalIncomeForExemption < basicExemptionLimit ? basicExemptionLimit - finalNormalIncomeForExemption : 0;
 
-      let unusedBasicExemption = 0;
-
-      if (finalNormalIncomeForExemption < basicExemptionLimit) {
-        unusedBasicExemption =
-          basicExemptionLimit - finalNormalIncomeForExemption;
-      }
-      
       const adjust111A = Math.min(unusedBasicExemption, stcg111aTaxable);
       stcg111aTaxable -= adjust111A;
       unusedBasicExemption -= adjust111A;
@@ -443,47 +372,28 @@ export default function Section234CCalculatorAY2026_27() {
       unusedBasicExemption -= adjust112a;
     }
 
-    const ltcg125Tax = ltcg125Taxable * 0.125;
-    const ltcg112aTax = ltcg112aTaxable * 0.125;
-    const stcg111aTax = stcg111aTaxable * 0.2;
-    const vdaIncomeTax = vdaIncomeTaxable * 0.30;
-    
-    const totalTax =
-      normalTax +
-      ltcg125Tax +
-      ltcg112aTax +
-      stcg111aTax +
-      vdaIncomeTax;
+    const ltcg125Tax = Math.round(ltcg125Taxable * 0.125);
+    const ltcg112aTax = Math.round(ltcg112aTaxable * 0.125);
+    const stcg111aTax = Math.round(stcg111aTaxable * 0.2);
+    const vdaIncomeTax = Math.round(vdaIncomeTaxable * 0.30);
+    const totalTax = Math.round(normalTax + ltcg125Tax + ltcg112aTax + stcg111aTax + vdaIncomeTax);
 
     const mmr = Math.max(num(mmrAmount[periodKey]), 0);
-
     const taxAfterMMR = Math.max(totalTax - mmr, 0);
-
-    const specialTax =
-      stcgSlabTax +
-      dividendTaxOnly +
-      ltcg125Tax +
-      ltcg112aTax +
-      stcg111aTax +
-      vdaIncomeTax;
+    const specialTax = Math.round(stcgSlabTax + dividendTaxOnly + ltcg125Tax + ltcg112aTax + stcg111aTax + vdaIncomeTax);
 
     const adjustedIncomeForEnhancedSurcharge = totalIncome - (data.dividendIncome + data.ltcg125 + data.ltcg112a + data.stcg111a);
     const surchargeRate = getSurchargeRate(totalIncome, adjustedIncomeForEnhancedSurcharge);
 
     const cappedSurchargeRate = Math.min(surchargeRate, 15);
-    const cappedIncomeTax =
-      dividendTaxOnly +
-      ltcg125Tax +
-      ltcg112aTax +
-      stcg111aTax;
-
+    const cappedIncomeTax = dividendTaxOnly + ltcg125Tax + ltcg112aTax + stcg111aTax;
     const surchargeTaxBase = Math.max(taxAfterMMR, 0);
     const cappedIncomeTaxAfterMMR = Math.min(cappedIncomeTax, surchargeTaxBase);
     const normalIncomeTaxForSurcharge = Math.max(surchargeTaxBase - cappedIncomeTaxAfterMMR, 0);
 
     const normalSurcharge = normalIncomeTaxForSurcharge * (surchargeRate / 100);
     const cappedIncomeSurcharge = cappedIncomeTaxAfterMMR * (cappedSurchargeRate / 100);
-    const rawSurcharge = normalSurcharge + cappedIncomeSurcharge;
+    const rawSurcharge = Math.round(normalSurcharge + cappedIncomeSurcharge);
 
     const calculateThresholdTaxAndSurcharge = (threshold, previousRate) => {
       const thresholdSpecialIncome = data.dividendIncome + data.ltcg125 + data.ltcg112a + data.stcg111a;
@@ -497,28 +407,11 @@ export default function Section234CCalculatorAY2026_27() {
 
       if (status === "individual_group") {
         const finalDataForThreshold = getPeriodIncome("mar31");
-
-        const finalNormalIncomeForExemption =
-          finalDataForThreshold.normalIncome +
-          finalDataForThreshold.presumptiveIncome +
-          finalDataForThreshold.stcgSlabIncome +
-          finalDataForThreshold.dividendIncome;
-
+        const finalNormalIncomeForExemption = finalDataForThreshold.normalIncome + finalDataForThreshold.presumptiveIncome + finalDataForThreshold.stcgSlabIncome + finalDataForThreshold.dividendIncome;
         const basicExemptionLimitForThreshold = getBasicExemption();
+        let thresholdUnusedBasicExemption = finalNormalIncomeForExemption < basicExemptionLimitForThreshold ? basicExemptionLimitForThreshold - finalNormalIncomeForExemption : 0;
 
-        let thresholdUnusedBasicExemption = 0;
-
-        if (finalNormalIncomeForExemption < basicExemptionLimitForThreshold) {
-          thresholdUnusedBasicExemption =
-            basicExemptionLimitForThreshold -
-            finalNormalIncomeForExemption;
-        }
-
-        const thresholdStcgSlabIncome = Math.min(
-          data.stcgSlabIncome,
-          Math.max(thresholdOrdinaryWithDividend - finalNormalIncomeForExemption, 0)
-        );
-
+        const thresholdStcgSlabIncome = Math.min(data.stcgSlabIncome, Math.max(thresholdOrdinaryWithDividend - finalNormalIncomeForExemption, 0));
         const thresholdAdjustStcgSlab = Math.min(thresholdUnusedBasicExemption, thresholdStcgSlabIncome);
         thresholdUnusedBasicExemption -= thresholdAdjustStcgSlab;
 
@@ -535,37 +428,18 @@ export default function Section234CCalculatorAY2026_27() {
         thresholdUnusedBasicExemption -= thresholdAdjust112a;
       }
 
-      const thresholdLtcg125Tax = thresholdLtcg125Taxable * 0.125;
-      const thresholdLtcg112aTax = thresholdLtcg112aTaxable * 0.125;
-      const thresholdStcg111aTax = thresholdStcg111aTaxable * 0.2;
-      const thresholdTotalTax =
-        thresholdTaxWithDividend +
-        thresholdLtcg125Tax +
-        thresholdLtcg112aTax +
-        thresholdStcg111aTax;
+      const thresholdLtcg125Tax = Math.round(thresholdLtcg125Taxable * 0.125);
+      const thresholdLtcg112aTax = Math.round(thresholdLtcg112aTaxable * 0.125);
+      const thresholdStcg111aTax = Math.round(thresholdStcg111aTaxable * 0.2);
+      const thresholdTotalTax = Math.round(thresholdTaxWithDividend + thresholdLtcg125Tax + thresholdLtcg112aTax + thresholdStcg111aTax);
 
       const thresholdCappedRate = Math.min(previousRate, 15);
-      const thresholdDividendTaxForSurcharge =
-        thresholdDividendIncome > 0 && thresholdOrdinaryWithDividend > 0
-          ? (thresholdDividendIncome / thresholdOrdinaryWithDividend) * thresholdTaxWithDividend
-          : 0;
-
-      const thresholdCappedIncomeTax =
-        thresholdDividendTaxForSurcharge +
-        thresholdLtcg125Tax +
-        thresholdLtcg112aTax +
-        thresholdStcg111aTax;
-
+      const thresholdDividendTaxForSurcharge = thresholdDividendIncome > 0 && thresholdOrdinaryWithDividend > 0 ? (thresholdDividendIncome / thresholdOrdinaryWithDividend) * thresholdTaxWithDividend : 0;
+      const thresholdCappedIncomeTax = thresholdDividendTaxForSurcharge + thresholdLtcg125Tax + thresholdLtcg112aTax + thresholdStcg111aTax;
       const thresholdNormalTaxForSurcharge = Math.max(thresholdTotalTax - thresholdCappedIncomeTax, 0);
 
-      const thresholdSurcharge =
-        (thresholdNormalTaxForSurcharge * (previousRate / 100)) +
-        (thresholdCappedIncomeTax * (thresholdCappedRate / 100));
-
-      return {
-        thresholdTotalTax,
-        thresholdSurcharge,
-      };
+      const thresholdSurcharge = Math.round((thresholdNormalTaxForSurcharge * (previousRate / 100)) + (thresholdCappedIncomeTax * (thresholdCappedRate / 100)));
+      return { thresholdTotalTax, thresholdSurcharge };
     };
 
     const marginalReliefInfo = getSurchargeThresholdInfo(totalIncome, adjustedIncomeForEnhancedSurcharge);
@@ -578,41 +452,21 @@ export default function Section234CCalculatorAY2026_27() {
       const maximumTaxAndSurcharge = thresholdTotalTax + thresholdSurcharge + excessIncomeOverThreshold;
       const currentTaxAndRawSurcharge = taxAfterMMR + rawSurcharge;
 
-      marginalRelief = Math.max(currentTaxAndRawSurcharge - maximumTaxAndSurcharge, 0);
+      marginalRelief = Math.round(Math.max(currentTaxAndRawSurcharge - maximumTaxAndSurcharge, 0));
     }
 
-    const surcharge = Math.max(rawSurcharge - marginalRelief, 0);
-
+    const surcharge = Math.round(Math.max(rawSurcharge - marginalRelief, 0));
     const taxBeforeCess = taxAfterMMR + surcharge;
-    const cess = taxBeforeCess * 0.04;
-    const taxWithSurchargeAndCess = taxBeforeCess + cess;
+    const cess = Math.round(taxBeforeCess * 0.04);
+    const taxWithSurchargeAndCess = Math.round(taxBeforeCess + cess);
     const commonCreditAmount = num(commonCredit);
-    const balanceTax = Math.max(taxWithSurchargeAndCess - commonCreditAmount, 0);
+    const balanceTax = Math.round(Math.max(taxWithSurchargeAndCess - commonCreditAmount, 0));
 
     return {
-      ...data,
-      ordinaryWithoutDividend,
-      ordinaryWithDividend,
-      normalIncomeTotal,
-      specialIncomeTotal,
-      totalIncome,
-      normalTax: taxWithDividend,
-      stcgSlabTax,
-      dividendTax,
-      ltcg125Tax,
-      ltcg112aTax,
-      stcg111aTax,
-      vdaIncomeTax,
-      totalTax,
-      specialTax,
-      surchargeRate,
-      rawSurcharge,
-      marginalRelief,
-      surcharge,
-      cess,
-      taxWithSurchargeAndCess,
-      commonCreditAmount,
-      balanceTax,
+      ...data, ordinaryWithoutDividend, ordinaryWithDividend, normalIncomeTotal, specialIncomeTotal, totalIncome,
+      normalTax: taxWithDividend, stcgSlabTax, dividendTax, ltcg125Tax, ltcg112aTax, stcg111aTax, vdaIncomeTax,
+      totalTax, specialTax, surchargeRate, rawSurcharge, marginalRelief, surcharge, cess, taxWithSurchargeAndCess,
+      commonCreditAmount, balanceTax,
     };
   };
 
@@ -628,42 +482,28 @@ export default function Section234CCalculatorAY2026_27() {
     let cumulativeAdvanceTaxPaid = 0;
 
     return installments.map((item) => {
-      const taxData =
-        item.key === "mar15"
-          ? periodCalculation.mar31 || {}
-          : periodCalculation[item.key] || {};
-
+      const taxData = item.key === "mar15" ? periodCalculation.mar31 || {} : periodCalculation[item.key] || {};
       const balanceTax = taxData.balanceTax || 0;
       const currentAdvanceTaxPaid = num(advanceTax[item.key]?.paidAmount);
       cumulativeAdvanceTaxPaid += currentAdvanceTaxPaid;
 
-      const dueInstallmentAmount = balanceTax * (item.duePercent / 100);
-      const minimumAmountToAvoid234C = balanceTax * (item.minimumPercent / 100);
+      const dueInstallmentAmount = Math.round(balanceTax * (item.duePercent / 100));
+      const minimumAmountToAvoid234C = Math.round(balanceTax * (item.minimumPercent / 100));
 
-      const shortfall =
-        cumulativeAdvanceTaxPaid >= minimumAmountToAvoid234C
-          ? 0
-          : Math.max(dueInstallmentAmount - cumulativeAdvanceTaxPaid, 0);
-
+      const shortfall = cumulativeAdvanceTaxPaid >= minimumAmountToAvoid234C ? 0 : Math.max(dueInstallmentAmount - cumulativeAdvanceTaxPaid, 0);
       const interestPayableOn = roundDownTo100(shortfall);
-      const interest = interestPayableOn * 0.01 * item.months;
+      const interest = Math.round(interestPayableOn * 0.01 * item.months);
 
       return {
-        ...item,
-        balanceTax,
-        paidDate: advanceTax[item.key]?.paidDate || "",
-        currentAdvanceTaxPaid,
-        paidGrossAmount: cumulativeAdvanceTaxPaid,
-        dueInstallmentAmount,
-        minimumAmountToAvoid234C,
-        interestPayableOn,
-        interest,
+        ...item, balanceTax, paidDate: advanceTax[item.key]?.paidDate || "", currentAdvanceTaxPaid,
+        paidGrossAmount: cumulativeAdvanceTaxPaid, dueInstallmentAmount, minimumAmountToAvoid234C,
+        interestPayableOn, interest,
       };
     });
   }, [periodCalculation, advanceTax]);
 
   const finalTax = periodCalculation.mar31 || {};
-  const total234CInterest = installmentCalculation.reduce((sum, item) => sum + item.interest, 0);
+  const total234CInterest = Math.round(installmentCalculation.reduce((sum, item) => sum + item.interest, 0));
 
   const resetCalculator = () => {
     setStatus("individual_group");
@@ -678,11 +518,67 @@ export default function Section234CCalculatorAY2026_27() {
     setMmrAmount(initialMmrAmount);
     setAdvanceTax(initialAdvanceTax);
   };
+  const printReportData = {
+    calculatorName: "Section 234C Interest Calculation Report",
+    assessmentYear: ASSESSMENT_YEAR,
+    sections: [
+      {
+        title: "Quarter-Wise Income Breakdown",
+        columns: ["Income Particulars", "Up to 15/6", "Up to 15/9", "Up to 15/12", "Up to 15/3", "Up to 31/3"],
+        rows: [
+          { label: "Normal Income", values: periods.map((p) => periodCalculation[p.key].normalIncome) },
+          { label: "Presumptive Income", values: periods.map((p) => periodCalculation[p.key].presumptiveIncome) },
+          { label: "STCG - Slab Rate", values: periods.map((p) => periodCalculation[p.key].stcgSlabIncome) },
+          { label: "Dividend Income", values: periods.map((p) => periodCalculation[p.key].dividendIncome) },
+          { label: "Total Normal Income", values: periods.map((p) => periodCalculation[p.key].normalIncomeTotal) },
+          { label: "LTCG @12.5%", values: periods.map((p) => periodCalculation[p.key].ltcg125) },
+          { label: "LTCG 112A @12.5%", values: periods.map((p) => periodCalculation[p.key].ltcg112a) },
+          { label: "STCG 111A @20%", values: periods.map((p) => periodCalculation[p.key].stcg111a) },
+          { label: "VDA Income @30%", values: periods.map((p) => periodCalculation[p.key].vdaIncome) },
+          { label: "Total Special Income", values: periods.map((p) => periodCalculation[p.key].specialIncomeTotal) },
+          { label: "Total Gross Income", values: periods.map((p) => periodCalculation[p.key].totalIncome) },
+        ],
+      },
+      {
+        title: "Quarter-Wise Tax Computation",
+        columns: ["Particulars", "Up to 15/6", "Up to 15/9", "Up to 15/12", "Up to 15/3", "Up to 31/3"],
+        rows: [
+          { label: "Tax on Normal Income", values: periods.map((p) => periodCalculation[p.key].dividendTax) },
+          { label: "Tax on Special Income", values: periods.map((p) => periodCalculation[p.key].specialTax) },
+          { label: "Total Tax", values: periods.map((p) => periodCalculation[p.key].totalTax) },
+          { label: "Surcharge", values: periods.map((p) => periodCalculation[p.key].surcharge) },
+          { label: "Cess @4%", values: periods.map((p) => periodCalculation[p.key].cess) },
+          { label: "Tax + Surcharge + Cess", values: periods.map((p) => periodCalculation[p.key].taxWithSurchargeAndCess) },
+          { label: "Less: TDS / Credit", values: periods.map((p) => periodCalculation[p.key].commonCreditAmount) },
+          { label: "Balance Tax", values: periods.map((p) => periodCalculation[p.key].balanceTax) },
+        ],
+      },
+      {
+        title: "Section 234C Installment-Wise Interest Calculation",
+        columns: ["Installment", "Due Date", "Due %", "Due Amount", "Min %", "Min Amount", "Paid Amount", "Interest Payable On", "Interest u/s 234C"],
+        rows: installmentCalculation.map((item) => ({
+          label: item.title,
+          values: [
+            item.dueDate,
+            `${item.duePercent}%`,
+            item.dueInstallmentAmount,
+            `${item.minimumPercent}%`,
+            item.minimumAmountToAvoid234C,
+            item.paidGrossAmount,
+            item.interestPayableOn,
+            item.interest,
+          ],
+        })),
+      },
+    ],
+  };
 
   return (
     <div className="c234-page">
       <div className="c234-container">
-        <div className="business-code-back-wrapper">
+        
+        {/* TOP BAR WITH BACK AND DOWNLOAD REPORT BUTTON */}
+        <div className="top-action-bar" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
           <button
             type="button"
             className="business-code-back-btn"
@@ -691,7 +587,23 @@ export default function Section234CCalculatorAY2026_27() {
             <span>←</span>
             Back
           </button>
+          
+          <button
+            type="button"
+            className="download-report-btn"
+            onClick={() => window.print()}
+          >
+            <span>📥</span> Download Report
+          </button>
         </div>
+
+        {/* Hidden Report Component Rendered for window.print() / Download PDF */}
+        <CalculationPrintReport
+          calculatorName={printReportData.calculatorName}
+          assessmentYear={printReportData.assessmentYear}
+          sections={printReportData.sections}
+        />
+
         <div className="c234-header">
           <div>
             <p className="c234-kicker">Income Tax Utility</p>
@@ -1081,7 +993,6 @@ export default function Section234CCalculatorAY2026_27() {
                       </tr>
                     ))}
 
-                    {/* MMR ROW — ENABLED FOR ALL QUARTERS */}
                     <tr>
                       <td>MMR</td>
                       {periods.map((period) => (
@@ -1351,7 +1262,7 @@ export default function Section234CCalculatorAY2026_27() {
         .c234-input-table th, .c234-result-table th { background: rgba(15,23,42,0.94); color: #bfdbfe; text-align: left; font-weight: 900; }
         .c234-input-table td:first-child, .c234-result-table td:first-child { color: #dbeafe; font-weight: 900; width: 22%; min-width: 0; }
         .c234-input-table input { min-width: 0; width: 100%; padding: 0 8px; }
-        .c234-auto-field {background: rgba(15, 23, 42, 0.72) !important;color: #93c5fd !important;cursor: not-allowed;}
+        .c234-auto-field { background: rgba(15, 23, 42, 0.72) !important; color: #93c5fd !important; cursor: not-allowed; }
         .c234-disabled-cell { display: inline-flex; min-height: 40px; align-items: center; justify-content: center; padding: 0 12px; border-radius: 12px; background: rgba(148,163,184,0.09); color: #94a3b8; font-size: 12px; font-weight: 800; }
         .c234-highlight-row td { background: rgba(14,165,233,0.12); color: #ffffff; font-weight: 900; }
         .c234-total-row td { background: rgba(37,99,235,0.10); color: #ffffff; font-weight: 900; }
@@ -1375,10 +1286,8 @@ export default function Section234CCalculatorAY2026_27() {
         .c234-result-item.final strong { color: #ffffff; font-size: 20px; }
         .c234-reset-btn { width: calc(100% - 36px); margin: 0 18px 20px; height: 46px; border-radius: 14px; border: 1px solid rgba(148,163,184,0.22); background: rgba(2,6,23,0.48); color: #cbd5e1; font-weight: 900; cursor: pointer; transition: all 0.2s ease; }
         .c234-reset-btn:hover { border-color: #60a5fa; color: #ffffff; background: rgba(15,23,42,0.95); }
-        @media (max-width: 1100px) { .c234-page { padding: 20px; } .c234-header { flex-direction: column; align-items: flex-start; } .c234-grid { grid-template-columns: 1fr; } .c234-result-panel { position: static; } }
-        @media (max-width: 680px) { .c234-form-grid { grid-template-columns: 1fr; } .c234-result-item { flex-direction: column; } .c234-result-item strong { text-align: left; } }
-        .business-code-back-wrapper { margin-bottom: 20px; }
-        .business-code-back-btn {
+
+        .business-code-back-btn, .download-report-btn {
           display: inline-flex;
           align-items: center;
           gap: 8px;
@@ -1398,7 +1307,21 @@ export default function Section234CCalculatorAY2026_27() {
           color: #ffffff;
           background: rgba(37, 99, 235, 0.12);
         }
-        .business-code-back-btn span { font-size: 18px; }
+        .download-report-btn {
+          border: 1px solid rgba(96, 165, 250, 0.4);
+          background: linear-gradient(135deg, rgba(37, 99, 235, 0.9), rgba(14, 165, 233, 0.9));
+          color: #ffffff;
+          box-shadow: 0 4px 15px rgba(37, 99, 235, 0.3);
+        }
+        .download-report-btn:hover {
+          background: linear-gradient(135deg, rgba(37, 99, 235, 1), rgba(14, 165, 233, 1));
+          box-shadow: 0 6px 20px rgba(37, 99, 235, 0.5);
+          transform: translateY(-1px);
+        }
+        .business-code-back-btn span, .download-report-btn span { font-size: 18px; }
+
+        @media (max-width: 1100px) { .c234-page { padding: 20px; } .c234-header { flex-direction: column; align-items: flex-start; } .c234-grid { grid-template-columns: 1fr; } .c234-result-panel { position: static; } }
+        @media (max-width: 680px) { .c234-form-grid { grid-template-columns: 1fr; } .c234-result-item { flex-direction: column; } .c234-result-item strong { text-align: left; } }
       `}</style>
     </div>
   );

@@ -56,6 +56,13 @@ export default function E_Tutorial() {
        "A tax calendar provides a concise overview of important tax-related due dates, filing deadlines, and compliance requirements.",
       badge: "Reference",
       onClick: () => navigate("/Tax_Calendar"),
+    },
+    {
+      title: "Financial Ratios Disclosure",
+      description:
+       "A standard format for the mandatory financial ratios under Schedule III of the Companies Act, 2013. It provides the accurate numerator and denominator mapping for ratios like Current Ratio, Debt-Equity, ROE, and Turnover Ratios, which can be included directly in the Notes to Accounts of Financial Statements.",
+      badge: "Reference",
+      onClick: () => navigate("/FinancialRatiosDisclosure"),
     }
    ];
 

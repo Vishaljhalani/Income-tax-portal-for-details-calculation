@@ -6,7 +6,7 @@ const formatValue = (value) => {
   }
 
   if (typeof value === "number") {
-    return `₹ ${value.toLocaleString("en-IN")}`;
+    return `₹ ${Math.round(value).toLocaleString("en-IN")}`;
   }
 
   return value;
@@ -33,45 +33,48 @@ export default function CalculationPrintReport({
 
         .print-report-header {
           text-align: center;
-          margin-bottom: 24px;
+          margin-bottom: 8px;
         }
 
         .print-report-title {
-          font-size: 22px;
+          font-size: 16px;
           font-weight: 700;
-          margin: 0 0 6px;
+          margin: 0 0 2px;
         }
 
         .print-report-ay {
-          font-size: 14px;
+          font-size: 11px;
           color: #374151;
           margin: 0;
         }
 
         .print-report-section {
-          margin-top: 24px;
+          margin-top: 8px;
           page-break-inside: avoid;
+          break-inside: avoid;
         }
 
         .print-report-section-title {
-          font-size: 16px;
+          font-size: 12px;
           font-weight: 700;
-          margin: 0 0 10px;
-          padding-bottom: 6px;
-          border-bottom: 2px solid #111827;
+          margin: 0 0 4px;
+          padding-bottom: 2px;
+          border-bottom: 1.5px solid #111827;
         }
 
         .print-report-table {
           width: 100%;
           border-collapse: collapse;
-          font-size: 11px;
+          font-size: 9px;
+          table-layout: fixed;
         }
 
         .print-report-table th,
         .print-report-table td {
           border: 1px solid #9ca3af;
-          padding: 7px 8px;
+          padding: 3px 5px;
           vertical-align: middle;
+          word-wrap: break-word;
         }
 
         .print-report-table th {
@@ -82,6 +85,7 @@ export default function CalculationPrintReport({
 
         .print-report-table td:first-child {
           font-weight: 600;
+          width: 28%;
         }
 
         .print-report-table td:not(:first-child) {
@@ -90,8 +94,15 @@ export default function CalculationPrintReport({
 
         @media print {
           @page {
-            size: A4;
-            margin: 12mm;
+            size: A4 portrait;
+            margin: 5mm 5mm 5mm 5mm;
+          }
+
+          html, body {
+            height: 100% !important;
+            max-height: 100% !important;
+            overflow: hidden !important;
+            background: #ffffff !important;
           }
 
           body * {
@@ -105,13 +116,21 @@ export default function CalculationPrintReport({
 
           .calculation-print-report {
             display: block !important;
-            position: absolute;
-            inset: 0;
-            width: 100%;
+            position: absolute !important;
+            left: 0 !important;
+            top: 0 !important;
+            width: 100% !important;
+            height: 100% !important;
+            max-height: 100% !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            overflow: hidden !important;
           }
 
           .print-report-section {
-            page-break-inside: avoid;
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
+            margin-top: 6px !important;
           }
         }
       `}</style>
