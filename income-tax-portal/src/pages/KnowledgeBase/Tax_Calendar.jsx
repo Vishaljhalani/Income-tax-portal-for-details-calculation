@@ -601,7 +601,7 @@ export default function Tax_Calendar() {
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
   const [page, setPage] = useState(1);
-
+  const [showPast, setShowPast] = useState(true);
   const filteredData = useMemo(() => {
     const yearData = getYearData(financialYear);
     if (yearData.length === 0) return [];
@@ -620,31 +620,32 @@ export default function Tax_Calendar() {
       const toDateMatch = toDate === "" || item.date <= toDate;
 
       // Once a due date is in the past, drop the row automatically.
-      const notPastDue = daysUntil(item.date) >= 0;
+      const notPastDue = showPast || daysUntil(item.date) >= 0;
 
       return typeMatch && searchMatch && fromDateMatch && toDateMatch && notPastDue;
     })
       // Soonest due date first, regardless of type (ISO dates sort correctly as text).
       .sort((a, b) => a.date.localeCompare(b.date));
-  }, [financialYear, search, dueDateType, fromDate, toDate]);
+  }, [financialYear, search, dueDateType, fromDate, toDate, showPast]);
 
   // Whenever the filters change the result set, jump back to page 1 so the
   // pager never points past the end of a now-shorter list.
   useEffect(() => {
     setPage(1);
-  }, [financialYear, search, dueDateType, fromDate, toDate]);
+  }, [financialYear, search, dueDateType, fromDate, toDate, showPast]);
 
   const selectedYearHasData = getYearData(financialYear).length > 0;
 
   const pageCount = Math.max(1, Math.ceil(filteredData.length / ROWS_PER_PAGE));
   const pagedData = filteredData.slice((page - 1) * ROWS_PER_PAGE, page * ROWS_PER_PAGE);
 
-  const handleReset = () => {
+ const handleReset = () => {
     setFinancialYear("2026-27");
     setSearch("");
     setDueDateType("All");
     setFromDate("");
     setToDate("");
+    setShowPast(false);
     setPage(1);
   };
 
@@ -751,7 +752,7 @@ export default function Tax_Calendar() {
             label="From Date"
             value={fromDate}
             onChange={(e) => setFromDate(e.target.value)}
-            InputLabelProps={{ shrink: true }}
+            slotProps={{ inputLabel: { shrink: true } }}
             sx={fieldSx}
           />
 
@@ -761,7 +762,7 @@ export default function Tax_Calendar() {
             label="To Date"
             value={toDate}
             onChange={(e) => setToDate(e.target.value)}
-            InputLabelProps={{ shrink: true }}
+           slotProps={{ inputLabel: { shrink: true } }}
             sx={fieldSx}
           />
 
@@ -790,13 +791,36 @@ export default function Tax_Calendar() {
       </StyledCard>
 
       {/* ================= RESULTS ================= */}
-      <Box sx={{ mb: 2, display: "flex", flexWrap: "wrap", alignItems: "baseline", justifyContent: "space-between", gap: 1 }}>
+           <Box sx={{ mb: 2, display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: 1.5 }}>
         <Typography variant="h6" sx={{ fontWeight: 700, color: "#fff" }}>
-          Tax Due Dates \u2014 {financialYear}
+          Tax Due Dates — {financialYear}
         </Typography>
-        <Typography variant="body2" sx={{ color: galaxy.muted }}>
-          {filteredData.length} record{filteredData.length !== 1 ? "s" : ""} found
-        </Typography>
+
+        <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+          <Button
+            onClick={() => setShowPast((prev) => !prev)}
+            variant="outlined"
+            size="small"
+            sx={{
+              textTransform: "none",
+              borderRadius: 2.5,
+              px: 2,
+              color: showPast ? "#fff" : "#dbeafe",
+              borderColor: galaxy.border,
+              background: showPast ? galaxy.headGradient : "rgba(255, 255, 255, 0.07)",
+              "&:hover": {
+                borderColor: "#60a5fa",
+                background: showPast ? galaxy.headGradient : "rgba(96, 165, 250, 0.18)",
+              },
+            }}
+          >
+            {showPast ? "Hide past due dates" : "Show past due dates"}
+          </Button>
+
+          <Typography variant="body2" sx={{ color: galaxy.muted }}>
+            {filteredData.length} record{filteredData.length !== 1 ? "s" : ""} found
+          </Typography>
+        </Box>
       </Box>
 
       {/* No data for year */}
@@ -861,19 +885,28 @@ export default function Tax_Calendar() {
                         border: `1px solid ${galaxy.border}`,
                       }}
                     />
-                    {(() => {
-                      // Computed live against today's date, not a fixed
-                      // string — this is also what the auto-hide filter
-                      // above uses, so a row only ever shows 0 or more.
+                                        {(() => {
+                      // Live against today's date: future = "N Days to go",
+                      // today = "Due today", past (only when toggle is on) = "Due date passed".
                       const d = daysUntil(item.date);
-                      const label = d === 0 ? "Due today" : `${d} Day${d === 1 ? "" : "s"} to go`;
+                      const label =
+                        d < 0
+                          ? `Due date passed (${-d} day${d === -1 ? "" : "s"} ago)`
+                          : d === 0
+                          ? "Due today"
+                          : `${d} Day${d === 1 ? "" : "s"} to go`;
                       return (
                         <Chip
                           label={label}
                           size="small"
                           sx={{
-                            bgcolor: d === 0 ? "rgba(248, 113, 113, 0.22)" : "rgba(248, 113, 113, 0.15)",
-                            color: "#fecaca",
+                            bgcolor:
+                              d < 0
+                                ? "rgba(148, 163, 184, 0.18)"
+                                : d === 0
+                                ? "rgba(248, 113, 113, 0.22)"
+                                : "rgba(248, 113, 113, 0.15)",
+                            color: d < 0 ? "#cbd5e1" : "#fecaca",
                             fontWeight: 600,
                           }}
                         />
