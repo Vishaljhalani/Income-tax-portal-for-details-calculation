@@ -40,7 +40,7 @@ import IncomeTaxForms2026Page from "./pages/IncomeTaxForms2026Page";
 import HelpPage from "./pages/HelpPage";
 import IncomeTaxAct2025Page from "./pages/IncomeTaxAct2025Page";
 import IncomeTaxAct1961Page from "./pages/IncomeTaxAct1961Page";
-import ComparisonPage from "./pages/ComparisonPage";
+import ActComparison from "./pages/ActComparison";
 import NotFoundPage from "./pages/NotFoundPage";
 import ScrollToTop from "./components/ScrollToTop";
 
@@ -237,7 +237,7 @@ export default function App() {
 
           <Route
             path="acts-laws/comparison-2025-vs-1961"
-            element={<ComparisonPage />}
+            element={<ActComparison />}
           />
 
           {/* E-Tutorial */}
